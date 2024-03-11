@@ -25,7 +25,6 @@ Velit voluptate ea mollit mollit id anim fugiat aute veniam ex minim. Exercitati
 
 ```js
 const launches = FileAttachment("/data/launches.csv").csv({typed: true});
-const daylists = FileAttachment("/data/daylist.csv").csv({typed: true});
 const test = FileAttachment("/data/test.csv").csv({typed: true});
 ```
 
@@ -38,7 +37,7 @@ def python_code_block(hello):
     print(hello)
 ```
 
-Testing ${daylists[0].name}
+Testing ${test[0].Name}
 
 Testing again... **${test[m-1].Name}** is *${test[m-1].Age}*
 
