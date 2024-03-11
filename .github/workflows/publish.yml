@@ -32,6 +32,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r env/python-reqs.txt
 
+      - name: Retrieve Google SA file
+        env:
+          GSHEET_SA_BASE64: ${{ secrets.GSHEET_SA_BASE64 }}
+        run: |
+          echo $GSHEET_SA_BASE64 | base64 --decode > gsheet-sa.json
+
       - name: Build
         run: npm run build
 
