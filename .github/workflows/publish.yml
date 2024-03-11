@@ -32,6 +32,9 @@ jobs:
         with:
           requirements: env/python-reqs.txt
 
+      - name: Activate Python environement
+        run: pipenv shell
+
       - name: Build
         run: npm run build
 
