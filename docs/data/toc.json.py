@@ -1,3 +1,5 @@
+#!/user/bin/env pipenv-shebang
+
 import os, sys, json
 import frontmatter
 

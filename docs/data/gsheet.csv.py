@@ -1,3 +1,4 @@
+#!/user/bin/env pipenv-shebang
 
 from google.oauth2 import service_account
 import gspread
