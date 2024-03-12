@@ -2,4 +2,3 @@ pandas==2.2.0
 google-api-python-client==2.121.0
 gspread==6.0.2
 python-frontmatter==1.1.0
-pipenv-shebang==0.0.4

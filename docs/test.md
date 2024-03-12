@@ -2,9 +2,15 @@
 title: Custom page
 theme: [glacier, slate]
 toc: true
+description: this is a test page
 ---
 
 # This is a custom page!!
+
+<details>
+  <summary>Click me</summary>
+  This text is not visible by default.
+</details>
 
 This is a page I'm making as a test.
 

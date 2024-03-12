@@ -4,8 +4,8 @@ export default {
     {name: "Test", path: "/test"},
     {name: "Dashboard", path: "/example-dashboard"},
     {name: "Report", path: "/example-report"},
-    {name: "Section", open: false, pages: [
-      {name: "Test2", path: "/subdir/test2"}
+    {name: "Sub-Section", open: false, pages: [
+      {name: "Google Sheet Test", path: "/subdir/test2"}
     ]}
   ],
   search: true,

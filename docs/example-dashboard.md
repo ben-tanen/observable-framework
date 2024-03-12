@@ -2,6 +2,7 @@
 theme: dashboard
 title: Example dashboard
 toc: false
+description: this is a dashboard
 ---
 
 # Rocket launches 🚀
