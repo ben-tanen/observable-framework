@@ -60,7 +60,7 @@ const toc = FileAttachment("./data/toc.json").json();
 ```js
 for (let i = 0; i < toc.length; i++) {
     if (!toc[i].root) {
-        display(html`<li><a href="${toc[i].file.replace("./docs", "").replace(".md", "")}">${toc[i].title}</a> ~ ${toc[i].description}</li`);
+        display(html`<li><a href="${toc[i].file.replace("./docs/", "").replace(".md", "")}">${toc[i].title}</a> ~ ${toc[i].description}</li`);
     }
 }
 ```
