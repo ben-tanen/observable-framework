@@ -1,6 +1,6 @@
 ---
 title: Notion Test
-theme: [deep-space, wide]
+theme: [deep-space]
 toc: true
 description: this page is a test of using Notion data
 ---
@@ -11,6 +11,7 @@ This page will render data on the ${vinyl.length} records I currently have.
 
 ```js
 const vinyl = FileAttachment("../data/notion-vinyl.json").json({typed: true});
+const letterboxd = FileAttachment("../data/letterboxd-watchlist.csv").csv({typed: true})
 console.log(vinyl)
 ```
 
@@ -44,6 +45,8 @@ function vinylTimeline(data, {width} = {}) {
 </div>
 
 ## Test section
+
+There are currently **${letterboxd.length}** films on [my Letterboxd Watchlist](https://letterboxd.com/btanen/watchlist/). The most recent addition was **${letterboxd[0].title}**.
 
 Sint sit esse cupidatat irure pariatur commodo fugiat dolore ullamco do non. Ad deserunt excepteur officia consectetur voluptate dolore qui irure dolor adipisicing. Ut aliqua qui cillum voluptate consequat consequat ut. Sint fugiat minim eu anim cupidatat voluptate non quis sint ad nulla do elit ullamco. Sunt reprehenderit commodo commodo eiusmod reprehenderit eiusmod non mollit dolore mollit do. Veniam duis esse esse velit.
 

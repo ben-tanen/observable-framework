@@ -1,6 +1,6 @@
 ---
 title: Google Sheet Test
-theme: [deep-space, wide]
+theme: [deep-space]
 toc: true
 description: this page is a test of using Google Sheet data
 ---
