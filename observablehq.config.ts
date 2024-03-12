@@ -5,7 +5,8 @@ export default {
     {name: "Dashboard", path: "/example-dashboard"},
     {name: "Report", path: "/example-report"},
     {name: "Sub-Section", open: false, pages: [
-      {name: "Google Sheet Test", path: "/subdir/test2"}
+      {name: "Google Sheet Test", path: "/subdir/gsheet-data"},
+      {name: "Notion Test", path: "/subdir/notion-data"}
     ]}
   ],
   search: true,

@@ -1,13 +1,16 @@
 
-import os, sys
+import os, sys, json
 from google.oauth2 import service_account
 import gspread
 import pandas as pd
 
+# import secrets (for use below)
+secrets = json.load(open("env/secrets.json"))
+
 # initialize google sheets access
 creds_scope = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 creds_file = None
-for f in ["/Users/ben-tanen/secrets/gsheet-sa.json", "gsheet-sa.json"]:
+for f in [secrets["gsheet-sa-local-path"], "gsheet-sa.json"]:
     if os.path.isfile(f):
         creds_file = f
 assert os.path.isfile(creds_file), "No credentials file found"

@@ -40,6 +40,12 @@ jobs:
         run: |
           echo $GSHEET_SA_BASE64 | base64 --decode > gsheet-sa.json
 
+      - name: Retrieve other secret keys
+        env:
+          SECRET_KEYS: ${{ secrets.SECRET_KEYS }}
+        run: |
+          echo $SECRET_KEYS > env/secrets.json
+
       - name: Build
         run: npm run build
 
