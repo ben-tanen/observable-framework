@@ -12,7 +12,7 @@ This is a page I'm making as a test.
 Test page...
 
 ```js
-const gsheet = FileAttachment("/data/gsheet.csv").csv({typed: true});
+const gsheet = FileAttachment("../data/gsheet.csv").csv({typed: true});
 ```
 
 ```js

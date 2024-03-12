@@ -13,7 +13,7 @@ Excepteur excepteur velit fugiat nulla esse officia aliquip elit consequat adipi
 Velit voluptate ea mollit mollit id anim fugiat aute veniam ex minim. Exercitation dolor magna incididunt mollit. Ullamco elit commodo id cupidatat mollit labore magna. Qui incididunt laboris enim occaecat mollit quis ipsum excepteur voluptate commodo dolor proident non sunt velit. Mollit duis incididunt anim in et dolore irure tempor ullamco dolor eu. Elit ex anim culpa cillum.
 
 ```js
-const toc = FileAttachment("/data/toc.json").json();
+const toc = FileAttachment("./data/toc.json").json();
 console.log(toc);
 ```
 
@@ -24,8 +24,8 @@ Excepteur excepteur velit fugiat nulla esse officia aliquip elit consequat adipi
 Velit voluptate ea mollit mollit id anim fugiat aute veniam ex minim. Exercitation dolor magna incididunt mollit. Ullamco elit commodo id cupidatat mollit labore magna. Qui incididunt laboris enim occaecat mollit quis ipsum excepteur voluptate commodo dolor proident non sunt velit. Mollit duis incididunt anim in et dolore irure tempor ullamco dolor eu. Elit ex anim culpa cillum.
 
 ```js
-const launches = FileAttachment("/data/launches.csv").csv({typed: true});
-const test = FileAttachment("/data/test.csv").csv({typed: true});
+const launches = FileAttachment("./data/launches.csv").csv({typed: true});
+const test = FileAttachment("data/test.csv").csv({typed: true});
 ```
 
 ## Part 2

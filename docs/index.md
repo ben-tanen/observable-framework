@@ -52,7 +52,7 @@ root: true
 </div>
 
 ```js
-const toc = FileAttachment("/data/toc.json").json();
+const toc = FileAttachment("./data/toc.json").json();
 ```
 
 #### List of pages:
