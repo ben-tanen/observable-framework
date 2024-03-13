@@ -6,7 +6,7 @@ description: this page is a test of creating and using a dynamically generating 
 ---
 
 ```js
-const toc = FileAttachment("/data/toc.json").json();
+const toc = FileAttachment("../data/toc.json").json();
 ```
 
 ## List of pages:
