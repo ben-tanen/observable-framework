@@ -15,6 +15,7 @@ export default {
   ],
   search: true,
   pager: false,
+  footer: `Built with <a href='https://github.com/ben-tanen/observable-framework'>Observable</a> by <a href="https://ben-tanen.com/">Ben Tanen</a>, updated ${new Date().toLocaleDateString('en-us', { month: '2-digit', day: '2-digit', year: 'numeric'})}`
   // Some additional configuration options and their defaults:
   // theme: "default", // try "light", "dark", "slate", etc.
   // header: "", // what to show in the header (HTML)
