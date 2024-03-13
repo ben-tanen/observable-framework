@@ -2,11 +2,15 @@ export default {
   title: "BT Observable Framework",
   pages: [
     {name: "Test", path: "/test"},
-    {name: "Dashboard", path: "/example-dashboard"},
-    {name: "Report", path: "/example-report"},
-    {name: "Sub-Section", open: false, pages: [
-      {name: "Google Sheet Test", path: "/subdir/gsheet-data"},
-      {name: "Notion Test", path: "/subdir/notion-data"}
+    {name: "Experiments", open: false, pages: [
+      {name: "Page Index Test", path: "/experiments/file-index"},
+      {name: "Google Sheet Test", path: "/experiments/gsheet-data"},
+      {name: "Notion Test", path: "/experiments/notion-data"}
+    ]},
+    {name: "Observable Default Examples", open: false, pages: [
+      {name: "Home", path: "/observable-examples/index"},
+      {name: "Dashboard", path: "/observable-examples/example-dashboard"},
+      {name: "Report", path: "/observable-examples/example-report"},
     ]}
   ],
   search: true,

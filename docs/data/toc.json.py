@@ -24,8 +24,8 @@ def parsePage(p, depth = 0):
 
 for p0 in pages_config:
     if p0.get('pages'):
-        for p1 in p0['pages']:
-            pages.append(parsePage(p1, depth = 1))
+        for p1 in p0.get('pages', []):
+            pages.append(parsePage({**p1, **{"section": p0.get('name', "")}}, depth = 1))
     else:
         pages.append(parsePage(p0))
 
