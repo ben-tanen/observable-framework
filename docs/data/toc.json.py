@@ -1,5 +1,5 @@
 
-import os, sys, json, re
+import os, sys, json
 import esprima
 import frontmatter
 
