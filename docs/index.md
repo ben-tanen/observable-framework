@@ -76,7 +76,7 @@ const toc = FileAttachment("data/toc.json").json();
 for (let i = 0; i < toc.length; i++) {
     if (!toc[i].root) {
         const name = toc[i].section ? `${toc[i].section} ~ ${toc[i].title}` : toc[i].title,
-              path = toc[i].file.replace(".md", "").replace(".markdown", "")
+              path = toc[i].file.replace(".md", "").replace(".markdown", "").substring(1);
         let ul = document.getElementById("page-index-list"),
             li = document.createElement("li"),
             a = document.createElement("a");
