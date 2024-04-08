@@ -1,7 +1,5 @@
 ---
 title: File Index Test
-theme: [deep-space]
-toc: true
 description: this page is a test of creating and using a dynamically generating file index
 ---
 

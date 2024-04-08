@@ -1,7 +1,5 @@
 ---
 title: Github Pages Tutorial
-theme: [deep-space]
-toc: true
 description: this page is a walkthrough of how I hosted this all using Github Pages
 ---
 

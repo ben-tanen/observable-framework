@@ -1,21 +1,37 @@
 ---
 title: Notion Test
-theme: [deep-space]
-toc: true
 description: this page is a test of using data from Notion's API
 ---
 
-# This is a custom page V3!!
+# Experiment: Using data from Notion
 
-This page will render data on the ${vinyl.length} records I currently have.
+Similar to [the Google Sheet data experiment](../experiments/gsheet-data), this page is simply set up to test getting data from my own Notion database. In this case, I'm simply pulling data from [my database where I track the vinyl records I own](https://btnotion.notion.site/4e61be4d03ce487b857c60681029c3d9?v=9a4eb9452a984763b46455fc8c867d54).
+
+See [here](https://github.com/ben-tanen/observable-framework/blob/master/docs/data/notion-vinyl.json.py) for the data loader for getting the data from Notion via their API (written in Python).
+
+---
 
 ```js
 const vinyl = FileAttachment("../data/notion-vinyl.json").json({typed: true});
-const letterboxd = FileAttachment("../data/letterboxd-watchlist.csv").csv({typed: true})
-console.log(vinyl)
 ```
 
-The most recent record is *${vinyl[vinyl.length - 1].properties.Name.title[0].plain_text}* from **${vinyl[vinyl.length - 1].properties.Artist.rich_text[0].plain_text}**.
+```js
+const most_recent_vinyl = vinyl[vinyl.length - 1],
+      vinyls_by_artist = Array.from(d3.rollup(
+        vinyl,
+        (group) => group.length,
+        (d) => d.properties.Artist.rich_text[0].plain_text
+      ));
+vinyls_by_artist.sort((a, b) => d3.descending(a[1], b[1]));
+```
+
+
+
+Here is some information on the **${vinyl.length}** records I currently have:
+
+- The most recent record is *${most_recent_vinyl.properties.Name.title[0].plain_text}* from **${most_recent_vinyl.properties.Artist.rich_text[0].plain_text}**.
+- I have records from *${vinyls_by_artist.length}* distinct artists.
+- I have *${vinyls_by_artist[0][1]}* records from **${vinyls_by_artist[0][0]}** (my most represented artist).
 
 ```js
 function vinylTimeline(data, {width} = {}) {
@@ -43,20 +59,3 @@ function vinylTimeline(data, {width} = {}) {
     })), {width}))}
   </div>
 </div>
-
-## Test section
-
-There are currently **${letterboxd.length}** films on [my Letterboxd Watchlist](https://letterboxd.com/btanen/watchlist/). The most recent addition was **${letterboxd[0].title}**.
-
-Sint sit esse cupidatat irure pariatur commodo fugiat dolore ullamco do non. Ad deserunt excepteur officia consectetur voluptate dolore qui irure dolor adipisicing. Ut aliqua qui cillum voluptate consequat consequat ut. Sint fugiat minim eu anim cupidatat voluptate non quis sint ad nulla do elit ullamco. Sunt reprehenderit commodo commodo eiusmod reprehenderit eiusmod non mollit dolore mollit do. Veniam duis esse esse velit.
-
-Tempor reprehenderit consectetur incididunt proident enim. Laboris ex elit amet voluptate voluptate non ex officia aliqua. Ea ad eu nostrud irure consectetur. Veniam labore sit cupidatat enim ipsum commodo ad nostrud labore anim. Sint non laborum consectetur tempor amet cillum dolore culpa consequat. Laborum aute duis do irure id non consequat deserunt dolor irure do occaecat proident. Quis aliqua est anim sit esse officia laborum mollit commodo eu ipsum esse amet. Velit et nostrud consequat duis ullamco cillum nostrud in ex commodo do.
-
-## Test section 2
-
-Ad cillum aliqua minim labore ut cupidatat quis veniam. Duis ea Lorem culpa et eiusmod commodo voluptate reprehenderit in. Et duis fugiat eu. Voluptate reprehenderit eu nulla ad aute. Et esse nulla reprehenderit dolore nulla irure non aliqua dolore.
-
-Dolor proident ut nostrud do duis ex sit eu culpa irure exercitation proident ut enim ullamco. Mollit officia nostrud magna ipsum laborum elit nisi nulla mollit consectetur do. Anim culpa aliqua eu id aliqua culpa. Aute in duis officia pariatur anim culpa irure consectetur ipsum ut. Elit id voluptate sunt cillum duis exercitation consectetur sunt commodo. Aliquip aliquip reprehenderit consequat aliquip sunt adipisicing. Eu nulla cillum excepteur dolor et cillum veniam aliquip reprehenderit commodo aute et. Occaecat ad nisi ea elit dolor velit irure cillum laboris reprehenderit irure nulla.
-
-Exercitation do consectetur officia dolore. Dolore proident laboris velit proident amet veniam non adipisicing nulla ex duis aute veniam eiusmod. Nisi Lorem aliqua labore sit esse officia. Occaecat do magna nisi tempor officia ut Lorem irure. Ullamco excepteur dolore ea et incididunt ullamco sit nisi id occaecat ex cillum excepteur.
-
