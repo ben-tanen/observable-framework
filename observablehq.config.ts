@@ -3,9 +3,11 @@ export default {
   pages: [
     {name: "Test", path: "/test"},
     {name: "Experiments", open: false, pages: [
+      {name: "Github Pages Tutorial", path: "/experiments/gh-pages"},
       {name: "Page Index Test", path: "/experiments/file-index"},
       {name: "Google Sheet Test", path: "/experiments/gsheet-data"},
-      {name: "Notion Test", path: "/experiments/notion-data"}
+      {name: "Notion Test", path: "/experiments/notion-data"},
+      {name: "SQL Test", path: "/experiments/sql-data"}
     ]},
     {name: "Observable Default Examples", open: false, pages: [
       {name: "Home", path: "/observable-examples/index"},

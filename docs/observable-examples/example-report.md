@@ -1,6 +1,5 @@
 ---
 title: Example report
-description: this is a report
 ---
 
 # A brief history of space exploration

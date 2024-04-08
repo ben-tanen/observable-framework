@@ -2,7 +2,7 @@
 title: Notion Test
 theme: [deep-space]
 toc: true
-description: this page is a test of using Notion data
+description: this page is a test of using data from Notion's API
 ---
 
 # This is a custom page V3!!
