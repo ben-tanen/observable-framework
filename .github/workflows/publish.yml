@@ -47,6 +47,8 @@ jobs:
           echo $SECRET_KEYS > env/secrets.json
 
       - name: Build
+        env:
+          MEDIA_COUNTS_PAT: ${{ secrets.MEDIA_COUNTS_PAT }}
         run: npm run build
 
       - name: Upload artifact
