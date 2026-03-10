@@ -45,7 +45,7 @@ const serviceNames = Object.fromEntries(serviceConfig.map(d => [d.id, d.name]));
 // parse dates and filter to configured services
 const allData = raw
   .filter(d => serviceIds.includes(d.service))
-  .map(d => ({...d, date: new Date(d.date)}));
+  .map(d => ({...d, date: d3.utcParse("%Y-%m-%d")(d.date)}));
 ```
 
 ```js
@@ -103,7 +103,7 @@ const totalCount = d3.sum(latest, d => d.count);
   </div>
   <div class="card">
     <h2>Latest Data</h2>
-    <span class="big">${latestDate.toLocaleDateString("en-US", {month: "short", day: "numeric", year: "numeric"})}</span>
+    <span class="big">${d3.utcFormat("%b %-d, %Y")(latestDate)}</span>
   </div>
 </div>
 
@@ -191,7 +191,7 @@ function serviceChart(serviceData, config, metricInfo, {width} = {}) {
         stroke: color.apply(config.id),
         strokeWidth: 2,
         tip: true,
-        title: (d) => `${config.name}\n${d.date.toLocaleDateString()}: ${d[metric]}`
+        title: (d) => `${config.name}\n${d3.utcFormat("%b %-d, %Y")(d.date)}: ${d[metric]}`
       }),
       Plot.dot(serviceData, {
         x: "date",
