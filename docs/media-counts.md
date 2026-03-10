@@ -13,28 +13,28 @@ const raw = FileAttachment("data/media-counts.json").json();
 ```js
 // service display config
 const serviceConfig = [
-  { id: "youtube",      name: "YouTube",     mainMetric: "count", additionalMetrics: [
+  { id: "youtube",      name: "Videos (YouTube)",     mainMetric: "count", additionalMetrics: [
     { metric: "total_length_min", label: "Total Duration (min)", decimals: 1 },
   ]},
-  { id: "letterboxd",  name: "Letterboxd",  mainMetric: "count", additionalMetrics: [] },
-  { id: "feedly",       name: "Feedly",      mainMetric: "count", additionalMetrics: [] },
-  { id: "goodreads",    name: "Goodreads",   mainMetric: "count", additionalMetrics: [] },
-  { id: "spotify",      name: "Spotify",     mainMetric: "count", additionalMetrics: [
+  { id: "letterboxd",  name: "Movies (Letterboxd)",  mainMetric: "count", additionalMetrics: [] },
+  { id: "feedly",       name: "Articles (Feedly)",      mainMetric: "count", additionalMetrics: [] },
+  { id: "goodreads",    name: "Books (Goodreads)",   mainMetric: "count", additionalMetrics: [] },
+  { id: "spotify",      name: "Podcasts (Spotify)",     mainMetric: "count", additionalMetrics: [
     { metric: "total_duration_hrs",     label: "Total Duration (hrs)",     decimals: 2 },
     { metric: "remaining_duration_hrs", label: "Remaining Duration (hrs)", decimals: 2 },
   ]},
-  { id: "sequel_shows", name: "TV Shows",    mainMetric: "count", additionalMetrics: [
+  { id: "sequel_shows", name: "Shows (Sequel)",    mainMetric: "count", additionalMetrics: [
     { metric: "total_runtime_hrs",   label: "Total Duration (hrs)",      decimals: 2 },
     { metric: "total_eps",           label: "Episodes (Total)",         decimals: 0 },
     { metric: "count_want_to_watch", label: "Count (Want to Watch)",    decimals: 0 },
     { metric: "total_eps_wtw_shows", label: "Episodes (Want to Watch)", decimals: 0 },
   ]},
-  { id: "sequel_games", name: "Video Games", mainMetric: "count", additionalMetrics: [] },
-  { id: "musicbox",     name: "MusicBox",    mainMetric: "count", additionalMetrics: [
+  { id: "sequel_games", name: "Games (Sequel)", mainMetric: "count", additionalMetrics: [] },
+  { id: "musicbox",     name: "Music (MusicBox)",    mainMetric: "count", additionalMetrics: [
     { metric: "count_new",          label: "Count (New)", decimals: 0 },
     { metric: "total_duration_min", label: "Total Duration (min)", decimals: 1 }
   ]},
-  { id: "raindrop",     name: "Raindrop",    mainMetric: "count", additionalMetrics: [] },
+  { id: "raindrop",     name: "Links (Raindrop)",    mainMetric: "count", additionalMetrics: [] },
 ];
 
 const serviceIds = serviceConfig.map(d => d.id);
@@ -110,22 +110,48 @@ const totalCount = d3.sum(latest, d => d.count);
 <!-- Stacked area: total counts over time -->
 
 ```js
+// color scale using clean names for the total chart legends
+const namedColor = Plot.scale({
+  color: {
+    type: "categorical",
+    domain: serviceConfig.map(d => d.name),
+    range: d3.schemeTableau10
+  }
+});
+const serviceOrder = serviceConfig.map(d => d.name);
+
 function totalChart(data, {width} = {}) {
+  const named = data.map(d => ({...d, name: serviceNames[d.service]}));
   return Plot.plot({
     title: "Total counts over time",
     width,
     height: 350,
     y: {grid: true, label: "Count"},
     x: {type: "utc", label: null, domain: xDomain, ticks: xTicks, tickFormat: xTickFormat},
-    color: {...color, legend: true},
+    color: {...namedColor, legend: true},
     marks: [
-      Plot.areaY(data, Plot.stackY({
+      Plot.areaY(named, Plot.stackY({
         x: "date",
         y: (d) => d[serviceConfig.find(s => s.id === d.service)?.mainMetric || "count"],
-        fill: "service",
-        order: serviceIds,
+        fill: "name",
+        fillOpacity: 0.4,
+        order: serviceOrder,
+      })),
+      Plot.lineY(named, Plot.stackY2({
+        x: "date",
+        y: (d) => d[serviceConfig.find(s => s.id === d.service)?.mainMetric || "count"],
+        stroke: "name",
+        strokeWidth: 2,
+        order: serviceOrder,
+      })),
+      Plot.dot(named, Plot.stackY2({
+        x: "date",
+        y: (d) => d[serviceConfig.find(s => s.id === d.service)?.mainMetric || "count"],
+        fill: "name",
+        order: serviceOrder,
+        r: 3,
         tip: true,
-        title: (d) => `${serviceNames[d.service]}: ${d.count}`
+        title: (d) => `${d.name}: ${d.count}`
       })),
       Plot.ruleY([0])
     ]
@@ -147,7 +173,7 @@ function percentChart(data, {width} = {}) {
   const pctData = data.map(d => {
     const metric = serviceConfig.find(s => s.id === d.service)?.mainMetric || "count";
     const total = dailyTotals.get(+d.date) || 1;
-    return {...d, pct: (d[metric] / total) * 100};
+    return {...d, name: serviceNames[d.service], pct: (d[metric] / total) * 100};
   });
 
   return Plot.plot({
@@ -156,15 +182,30 @@ function percentChart(data, {width} = {}) {
     height: 350,
     y: {grid: true, label: "% of Total", domain: [0, 100]},
     x: {type: "utc", label: null, domain: xDomain, ticks: xTicks, tickFormat: xTickFormat},
-    color: {...color, legend: true},
+    color: {...namedColor, legend: true},
     marks: [
       Plot.areaY(pctData, Plot.stackY({
         x: "date",
         y: "pct",
-        fill: "service",
-        order: serviceIds,
+        fill: "name",
+        fillOpacity: 0.4,
+        order: serviceOrder,
+      })),
+      Plot.lineY(pctData, Plot.stackY2({
+        x: "date",
+        y: "pct",
+        stroke: "name",
+        strokeWidth: 2,
+        order: serviceOrder,
+      })),
+      Plot.dot(pctData, Plot.stackY2({
+        x: "date",
+        y: "pct",
+        fill: "name",
+        order: serviceOrder,
+        r: 3,
         tip: true,
-        title: (d) => `${serviceNames[d.service]}: ${d.pct.toFixed(1)}%`
+        title: (d) => `${d.name}: ${d.pct.toFixed(1)}%`
       })),
       Plot.ruleY([0])
     ]
@@ -178,6 +219,7 @@ function percentChart(data, {width} = {}) {
 function serviceChart(serviceData, config, metricInfo, {width} = {}) {
   const metric = metricInfo.metric;
   const yLabel = metricInfo.label;
+  const decimals = metricInfo.decimals ?? 2;
 
   return Plot.plot({
     width,
@@ -191,7 +233,7 @@ function serviceChart(serviceData, config, metricInfo, {width} = {}) {
         stroke: color.apply(config.id),
         strokeWidth: 2,
         tip: true,
-        title: (d) => `${config.name}\n${d3.utcFormat("%b %-d, %Y")(d.date)}: ${d[metric]}`
+        title: (d) => `${config.name}\n${d3.utcFormat("%b %-d, %Y")(d.date)}: ${d[metric]?.toLocaleString("en-US", {minimumFractionDigits: decimals, maximumFractionDigits: decimals})}`
       }),
       Plot.dot(serviceData, {
         x: "date",
