@@ -14,7 +14,7 @@ const raw = FileAttachment("data/media-counts.json").json();
 // service display config
 const serviceConfig = [
   { id: "youtube",      name: "YouTube",     mainMetric: "count", additionalMetrics: [
-    { metric: "total_length_min", label: "Total Length (min)", decimals: 1 },
+    { metric: "total_length_min", label: "Total Duration (min)", decimals: 1 },
   ]},
   { id: "letterboxd",  name: "Letterboxd",  mainMetric: "count", additionalMetrics: [] },
   { id: "feedly",       name: "Feedly",      mainMetric: "count", additionalMetrics: [] },
@@ -24,14 +24,15 @@ const serviceConfig = [
     { metric: "remaining_duration_hrs", label: "Remaining Duration (hrs)", decimals: 2 },
   ]},
   { id: "sequel_shows", name: "TV Shows",    mainMetric: "count", additionalMetrics: [
-    { metric: "total_runtime_hrs",   label: "Total Runtime (hrs)",      decimals: 2 },
+    { metric: "total_runtime_hrs",   label: "Total Duration (hrs)",      decimals: 2 },
     { metric: "total_eps",           label: "Episodes (Total)",         decimals: 0 },
     { metric: "count_want_to_watch", label: "Count (Want to Watch)",    decimals: 0 },
     { metric: "total_eps_wtw_shows", label: "Episodes (Want to Watch)", decimals: 0 },
   ]},
   { id: "sequel_games", name: "Video Games", mainMetric: "count", additionalMetrics: [] },
   { id: "musicbox",     name: "MusicBox",    mainMetric: "count", additionalMetrics: [
-    { metric: "count_new", label: "Count (New)", decimals: 0 },
+    { metric: "count_new",          label: "Count (New)", decimals: 0 },
+    { metric: "total_duration_min", label: "Total Duration (min)", decimals: 1 }
   ]},
   { id: "raindrop",     name: "Raindrop",    mainMetric: "count", additionalMetrics: [] },
 ];
