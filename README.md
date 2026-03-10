@@ -1,53 +1,58 @@
-# test_app
+# Observable Framework Sandbox
 
-This is an [Observable Framework](https://observablehq.com/framework) project. To start the local preview server, run:
+A personal [Observable Framework](https://observablehq.com/framework) site for experimenting with dashboards, data loaders, and components. Deployed to GitHub Pages via CI on every push to `master`.
 
+## Pages
+
+- **Home** — auto-generated index of all pages
+- **Media Counts** — dashboard pulling data from a separate GitHub repo
+- **Experiments** — pages testing various data sources (Google Sheets, Notion, Letterboxd, SQL, R)
+- **Observable Examples** — default example dashboard and report from the Framework starter
+
+## Data loaders
+
+Python (`.py`), JavaScript (`.js`), and R (`.R`) data loaders live in `docs/data/`. Python loaders require dependencies listed in `env/python-reqs.txt`.
+
+## Local development
+
+### Prerequisites
+
+- Node.js >= 20.6
+- Python 3.x with a virtual environment at `.venv/`
+- [1Password CLI](https://developer.1password.com/docs/cli/) (`op`) for secret injection
+
+### Setup
+
+```bash
+npm install
+python -m venv .venv
+source .venv/bin/activate
+pip install -r env/python-reqs.txt
 ```
-npm run dev
+
+### Running locally
+
+```bash
+npm run dev:local
 ```
 
-Then visit <http://localhost:3000> to preview your project.
+This uses `op run` to inject secrets from 1Password and activates the Python venv, then starts the Observable preview server at <http://localhost:3000>.
 
-For more, see <https://observablehq.com/framework/getting-started>.
+Secrets are referenced (not stored) in `env/.env` using `op://` URIs.
 
-## Project structure
+### CI / GitHub Actions
 
-A typical Framework project looks like this:
-
-```ini
-.
-├─ docs
-│  ├─ components
-│  │  └─ timeline.js           # an importable module
-│  ├─ data
-│  │  ├─ launches.csv.js       # a data loader
-│  │  └─ events.json           # a static data file
-│  ├─ example-dashboard.md     # a page
-│  ├─ example-report.md        # another page
-│  └─ index.md                 # the home page
-├─ .gitignore
-├─ observablehq.config.ts      # the project config file
-├─ package.json
-└─ README.md
-```
-
-**`docs`** - This is the “source root” — where your source files live. Pages go here. Each page is a Markdown file. Observable Framework uses [file-based routing](https://observablehq.com/framework/routing), which means that the name of the file controls where the page is served. You can create as many pages as you like. Use folders to organize your pages.
-
-**`docs/index.md`** - This is the home page for your site. You can have as many additional pages as you’d like, but you should always have a home page, too.
-
-**`docs/data`** - You can put [data loaders](https://observablehq.com/framework/loaders) or static data files anywhere in your source root, but we recommend putting them here.
-
-**`docs/components`** - You can put shared [JavaScript modules](https://observablehq.com/framework/javascript/imports) anywhere in your source root, but we recommend putting them here. This helps you pull code out of Markdown files and into JavaScript modules, making it easier to reuse code across pages, write tests and run linters, and even share code with vanilla web applications.
-
-**`observablehq.config.ts`** - This is the [project configuration](https://observablehq.com/framework/config) file, such as the pages and sections in the sidebar navigation, and the project’s title.
+The `publish.yml` workflow builds and deploys to GitHub Pages on push to `master` and on a 12-hour cron schedule. It installs Python dependencies globally (no venv) and injects secrets via GitHub Actions secrets — no 1Password required.
 
 ## Command reference
 
-| Command           | Description                                              |
-| ----------------- | -------------------------------------------------------- |
-| `npm install`            | Install or reinstall dependencies                        |
-| `npm run dev`        | Start local preview server                               |
-| `npm run build`      | Build your static site, generating `./dist`              |
-| `npm run deploy`     | Deploy your project to Observable                        |
-| `npm run clean`      | Clear the local data loader cache                        |
-| `npm run observable` | Run commands like `observable help`                      |
+| Command              | Description                                                    |
+| -------------------- | -------------------------------------------------------------- |
+| `npm install`        | Install or reinstall dependencies                              |
+| `npm run dev:local`  | Start local preview server (venv + 1Password)                  |
+| `npm run dev`        | Start preview server (CI — no venv or secrets injection)       |
+| `npm run build:local`| Build static site locally (venv + 1Password)                   |
+| `npm run build`      | Build static site (CI)                                         |
+| `npm run deploy`     | Deploy project to Observable                                   |
+| `npm run clean`      | Clear the local data loader cache                              |
+| `npm run observable` | Run commands like `observable help`                            |
