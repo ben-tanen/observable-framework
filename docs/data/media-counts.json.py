@@ -35,6 +35,19 @@ for file_info in listing.json():
     if not file_info["name"].endswith(".json"):
         continue
 
+    # Get last commit info for this file
+    commits_resp = requests.get(
+        f"https://api.github.com/repos/{REPO}/commits",
+        headers=headers,
+        params={"path": file_info["path"], "per_page": 1},
+    )
+    commits_resp.raise_for_status()
+    commits = commits_resp.json()
+    last_edited = commits[0]["commit"]["committer"]["date"] if commits else None
+
+    # Build the source URL (human-readable Github link)
+    source_url = f"https://github.com/{REPO}/blob/main/{file_info['path']}"
+
     resp = requests.get(file_info["url"], headers=headers)
     resp.raise_for_status()
     content = base64.b64decode(resp.json()["content"]).decode("utf-8")
@@ -42,7 +55,12 @@ for file_info in listing.json():
 
     date = day_data["date"]
     for service_id, metrics in day_data["summary"].items():
-        row = {"date": date, "service": service_id}
+        row = {
+            "date": date, 
+            "service": service_id,
+            "last_edited": last_edited,
+            "source_url": source_url
+        }
         row.update(metrics)
         rows.append(row)
 

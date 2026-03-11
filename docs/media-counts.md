@@ -39,6 +39,11 @@ const serviceConfig = [
 
 const serviceIds = serviceConfig.map(d => d.id);
 const serviceNames = Object.fromEntries(serviceConfig.map(d => [d.id, d.name]));
+const serviceMainMetric = Object.fromEntries(serviceConfig.map(d => [d.id, d.mainMetric]));
+
+function metricValue(d) {
+  return d[serviceMainMetric[d.service] || "count"] ?? 0;
+}
 ```
 
 ```js
@@ -65,7 +70,7 @@ const xTicks = xDays <= 14 ? d3.utcDay : xDays <= 60 ? d3.utcWeek : d3.utcMonth;
 const xTickFormat = xDays <= 14 ? d3.utcFormat("%b %-d") : xDays <= 60 ? d3.utcFormat("%b %-d") : d3.utcFormat("%b %Y");
 
 // compute daily totals for percentage chart
-const dailyTotals = d3.rollup(data, v => d3.sum(v, d => d[serviceConfig.find(s => s.id === d.service)?.mainMetric || "count"]), d => +d.date);
+const dailyTotals = d3.rollup(data, v => d3.sum(v, metricValue), d => +d.date);
 ```
 
 ```js
@@ -107,7 +112,7 @@ const totalCount = d3.sum(latest, d => d.count);
   </div>
 </div>
 
-<!-- Stacked area: total counts over time -->
+<!-- Topline totals chart -->
 
 ```js
 // color scale using clean names for the total chart legends
@@ -119,53 +124,140 @@ const namedColor = Plot.scale({
   }
 });
 const serviceOrder = serviceConfig.map(d => d.name);
+const TOPLINE_BASE_HEIGHT = 345;
+const TOPLINE_LEGEND_SPACE = 38;
 
-function totalChart(data, {width} = {}) {
+function toplineHeight(mode) {
+  // In overall mode there is no in-chart legend, so reserve equivalent
+  // space to keep the x-axis baseline aligned with the % chart.
+  return mode === "overall" ? TOPLINE_BASE_HEIGHT + TOPLINE_LEGEND_SPACE : TOPLINE_BASE_HEIGHT;
+}
+
+function totalChart(data, {width, mode = "overall"} = {}) {
   const named = data.map(d => ({...d, name: serviceNames[d.service]}));
+  const overall = Array.from(
+    d3.rollup(data, values => d3.sum(values, metricValue), d => +d.date),
+    ([dateMs, total]) => ({date: new Date(+dateMs), total})
+  ).sort((a, b) => d3.ascending(a.date, b.date));
+
+  if (mode === "overall") {
+    return Plot.plot({
+      width,
+      height: toplineHeight(mode),
+      y: {grid: true, label: "Count"},
+      x: {type: "utc", label: null, domain: xDomain, ticks: xTicks, tickFormat: xTickFormat},
+      marks: [
+        Plot.areaY(overall, {
+          x: "date",
+          y: "total",
+          fill: "#4e79a7",
+          fillOpacity: 0.25
+        }),
+        Plot.lineY(overall, {
+          x: "date",
+          y: "total",
+          stroke: "#4e79a7",
+          strokeWidth: 2
+        }),
+        Plot.dot(overall, {
+          x: "date",
+          y: "total",
+          r: 3,
+          fill: "#4e79a7",
+          tip: true,
+          title: (d) => `${d3.utcFormat("%b %-d, %Y")(d.date)}: ${d.total.toLocaleString("en-US")}`
+        }),
+        Plot.ruleY([0])
+      ]
+    });
+  }
+
   return Plot.plot({
-    title: "Total counts over time",
     width,
-    height: 350,
+    height: toplineHeight(mode),
     y: {grid: true, label: "Count"},
     x: {type: "utc", label: null, domain: xDomain, ticks: xTicks, tickFormat: xTickFormat},
     color: {...namedColor, legend: true},
     marks: [
       Plot.areaY(named, Plot.stackY({
         x: "date",
-        y: (d) => d[serviceConfig.find(s => s.id === d.service)?.mainMetric || "count"],
+        y: metricValue,
         fill: "name",
         fillOpacity: 0.4,
         order: serviceOrder,
       })),
       Plot.lineY(named, Plot.stackY2({
         x: "date",
-        y: (d) => d[serviceConfig.find(s => s.id === d.service)?.mainMetric || "count"],
+        y: metricValue,
         stroke: "name",
         strokeWidth: 2,
         order: serviceOrder,
       })),
       Plot.dot(named, Plot.stackY2({
         x: "date",
-        y: (d) => d[serviceConfig.find(s => s.id === d.service)?.mainMetric || "count"],
+        y: metricValue,
         fill: "name",
         order: serviceOrder,
         r: 3,
         tip: true,
-        title: (d) => `${d.name}: ${d.count}`
+        title: (d) => `${d.name}: ${metricValue(d).toLocaleString("en-US")}`
       })),
       Plot.ruleY([0])
     ]
   });
 }
+
+function totalChartCard(data) {
+  const card = document.createElement("div");
+  card.className = "card";
+
+  const header = document.createElement("div");
+  header.style.cssText = "display:flex; justify-content:space-between; align-items:center; gap:0.5rem; margin-bottom:0.5rem;";
+  const title = document.createElement("h2");
+  title.style.margin = "0";
+  title.textContent = "Total counts over time";
+  header.append(title);
+
+  const chartContainer = document.createElement("div");
+  let mode = "overall";
+  let currentWidth = 0;
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.style.cssText = "font-size:0.75rem; padding:0.15rem 0.45rem; border:1px solid #ccc; border-radius:4px; background:var(--theme-background); color:var(--theme-foreground); cursor:pointer;";
+
+  function updateToggleLabel() {
+    toggle.textContent = mode === "overall" ? "Split?" : "Total?";
+  }
+  updateToggleLabel();
+  header.append(toggle);
+
+  function renderChart() {
+    if (!currentWidth) return;
+    chartContainer.innerHTML = "";
+    chartContainer.append(totalChart(data, {width: currentWidth, mode}));
+  }
+
+  toggle.onclick = () => {
+    mode = mode === "overall" ? "split" : "overall";
+    updateToggleLabel();
+    renderChart();
+  };
+
+  card.append(header);
+  card.append(chartContainer);
+  card.append(resize((width) => {
+    currentWidth = width;
+    renderChart();
+    return html``;
+  }));
+
+  return card;
+}
 ```
 
 <div class="grid grid-cols-2">
-  <div class="card">
-    ${resize((width) => totalChart(data, {width}))}
-  </div>
-  <div class="card">
-    ${resize((width) => percentChart(data, {width}))}
-  </div>
+  ${totalChartCard(data)}
+  ${percentChartCard(data)}
 </div>
 
 ```js
@@ -177,7 +269,6 @@ function percentChart(data, {width} = {}) {
   });
 
   return Plot.plot({
-    title: "Share of total over time",
     width,
     height: 350,
     y: {grid: true, label: "% of Total", domain: [0, 100]},
@@ -210,6 +301,19 @@ function percentChart(data, {width} = {}) {
       Plot.ruleY([0])
     ]
   });
+}
+
+function percentChartCard(data) {
+  const card = document.createElement("div");
+  card.className = "card";
+
+  const title = document.createElement("h2");
+  title.style.margin = "0 0 0.5rem 0";
+  title.textContent = "Share of total over time";
+  card.append(title);
+
+  card.append(resize((width) => percentChart(data, {width})));
+  return card;
 }
 ```
 
@@ -321,3 +425,39 @@ const serviceGrid = html`<div class="grid grid-cols-3">
 
 display(serviceGrid);
 ```
+
+```js
+const sourceRows = Array.from(
+  d3.rollup(
+    raw.filter(d => d.source_url),
+    (values) => values[0],
+    (d) => d.source_url
+  ),
+  ([sourceUrl, row]) => {
+    const editedAt = row.last_edited ? new Date(row.last_edited) : null;
+    const fileName = sourceUrl.split("/").pop() ?? sourceUrl;
+    return {
+      sourceFile: {label: fileName, url: sourceUrl},
+      lastEdited: editedAt ? d3.utcFormat("%Y-%m-%d %H:%M UTC")(editedAt) : "—",
+      _editedAt: editedAt ? +editedAt : -Infinity
+    };
+  }
+).sort((a, b) => d3.descending(a._editedAt, b._editedAt));
+
+const sourceTable = Inputs.table(
+  sourceRows.map(({_editedAt, ...row}) => row),
+  {
+    columns: ["sourceFile", "lastEdited"],
+    header: {sourceFile: "Source File", lastEdited: "Last Edited"},
+    format: {
+      sourceFile: (d) => html`<a href="${d.url}" target="_blank" rel="noopener noreferrer">${d.label}</a>`
+    }
+  }
+);
+```
+
+<details>
+  <summary>View all data sources</summary>
+
+  ${sourceTable}
+</details>
