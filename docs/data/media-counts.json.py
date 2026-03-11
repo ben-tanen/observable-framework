@@ -31,21 +31,10 @@ listing.raise_for_status()
 
 # fetch and flatten each daily JSON
 rows = []
-for file_info in listing.json():
-    if not file_info["name"].endswith(".json"):
-        continue
+sources = []
+files = [f for f in listing.json() if f["name"].endswith(".json")]
 
-    # Get last commit info for this file
-    commits_resp = requests.get(
-        f"https://api.github.com/repos/{REPO}/commits",
-        headers=headers,
-        params={"path": file_info["path"], "per_page": 1},
-    )
-    commits_resp.raise_for_status()
-    commits = commits_resp.json()
-    last_edited = commits[0]["commit"]["committer"]["date"] if commits else None
-
-    # Build the source URL (human-readable Github link)
+for file_info in files:
     source_url = f"https://github.com/{REPO}/blob/main/{file_info['path']}"
 
     resp = requests.get(file_info["url"], headers=headers)
@@ -55,13 +44,22 @@ for file_info in listing.json():
 
     date = day_data["date"]
     for service_id, metrics in day_data["summary"].items():
-        row = {
-            "date": date, 
-            "service": service_id,
-            "last_edited": last_edited,
-            "source_url": source_url
-        }
+        row = {"date": date, "service": service_id}
         row.update(metrics)
         rows.append(row)
 
-json.dump(rows, sys.stdout)
+    sources.append({"file": file_info["name"], "url": source_url, "date": date})
+
+# fetch last commit date per file (batch after main loop to keep concerns separate)
+for source in sources:
+    path = f"{DATA_PATH}/{source['file']}"
+    commits_resp = requests.get(
+        f"https://api.github.com/repos/{REPO}/commits",
+        headers=headers,
+        params={"path": path, "per_page": 1},
+    )
+    commits_resp.raise_for_status()
+    commits = commits_resp.json()
+    source["last_edited"] = commits[0]["commit"]["committer"]["date"] if commits else None
+
+json.dump({"rows": rows, "sources": sources}, sys.stdout)

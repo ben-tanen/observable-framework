@@ -7,7 +7,12 @@ toc: false
 # Media Counts
 
 ```js
-const raw = FileAttachment("data/media-counts.json").json();
+const json = FileAttachment("data/media-counts.json").json();
+```
+
+```js
+const raw = json.rows;
+const sources = json.sources;
 ```
 
 ```js
@@ -150,20 +155,20 @@ function totalChart(data, {width, mode = "overall"} = {}) {
         Plot.areaY(overall, {
           x: "date",
           y: "total",
-          fill: "#4e79a7",
+          fill: d3.schemeTableau10[0],
           fillOpacity: 0.25
         }),
         Plot.lineY(overall, {
           x: "date",
           y: "total",
-          stroke: "#4e79a7",
+          stroke: d3.schemeTableau10[0],
           strokeWidth: 2
         }),
         Plot.dot(overall, {
           x: "date",
           y: "total",
           r: 3,
-          fill: "#4e79a7",
+          fill: d3.schemeTableau10[0],
           tip: true,
           title: (d) => `${d3.utcFormat("%b %-d, %Y")(d.date)}: ${d.total.toLocaleString("en-US")}`
         }),
@@ -263,9 +268,8 @@ function totalChartCard(data) {
 ```js
 function percentChart(data, {width} = {}) {
   const pctData = data.map(d => {
-    const metric = serviceConfig.find(s => s.id === d.service)?.mainMetric || "count";
     const total = dailyTotals.get(+d.date) || 1;
-    return {...d, name: serviceNames[d.service], pct: (d[metric] / total) * 100};
+    return {...d, name: serviceNames[d.service], pct: (metricValue(d) / total) * 100};
   });
 
   return Plot.plot({
@@ -427,22 +431,16 @@ display(serviceGrid);
 ```
 
 ```js
-const sourceRows = Array.from(
-  d3.rollup(
-    raw.filter(d => d.source_url),
-    (values) => values[0],
-    (d) => d.source_url
-  ),
-  ([sourceUrl, row]) => {
-    const editedAt = row.last_edited ? new Date(row.last_edited) : null;
-    const fileName = sourceUrl.split("/").pop() ?? sourceUrl;
+const sourceRows = sources
+  .map(d => {
+    const editedAt = d.last_edited ? new Date(d.last_edited) : null;
     return {
-      sourceFile: {label: fileName, url: sourceUrl},
+      sourceFile: {label: d.file, url: d.url},
       lastEdited: editedAt ? d3.utcFormat("%Y-%m-%d %H:%M UTC")(editedAt) : "—",
       _editedAt: editedAt ? +editedAt : -Infinity
     };
-  }
-).sort((a, b) => d3.descending(a._editedAt, b._editedAt));
+  })
+  .sort((a, b) => d3.descending(a._editedAt, b._editedAt));
 
 const sourceTable = Inputs.table(
   sourceRows.map(({_editedAt, ...row}) => row),
