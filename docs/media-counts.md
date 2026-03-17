@@ -29,7 +29,7 @@ const serviceConfig = [
     { metric: "remaining_duration_hrs", label: "Remaining Duration (hrs)", decimals: 2 },
   ]},
   { id: "sequel_shows", name: "Shows (Sequel)",    mainMetric: "count", additionalMetrics: [
-    { metric: "total_runtime_hrs",   label: "Total Duration (hrs)",      decimals: 2 },
+    { metric: "to_watch_runtime_hrs", label: "Remaining Duration (hrs)",   decimals: 2 },
     { metric: "total_eps",           label: "Episodes (Total)",         decimals: 0 },
     { metric: "count_want_to_watch", label: "Count (Want to Watch)",    decimals: 0 },
     { metric: "total_eps_wtw_shows", label: "Episodes (Want to Watch)", decimals: 0 },
