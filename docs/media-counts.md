@@ -70,9 +70,6 @@ const maxDate = d3.max(allData, d => d.date);
 const cutoff = dateRange != null ? d3.utcDay.offset(maxDate, -dateRange) : null;
 const data = cutoff ? allData.filter(d => d.date >= cutoff) : allData;
 const xDomain = [cutoff ?? d3.min(allData, d => d.date), maxDate];
-const xDays = (xDomain[1] - xDomain[0]) / (1000 * 60 * 60 * 24);
-const xTicks = xDays <= 14 ? d3.utcDay : xDays <= 60 ? d3.utcWeek : d3.utcMonth;
-const xTickFormat = xDays <= 14 ? d3.utcFormat("%b %-d") : xDays <= 60 ? d3.utcFormat("%b %-d") : d3.utcFormat("%b %Y");
 
 // compute daily totals for percentage chart
 const dailyTotals = d3.rollup(data, v => d3.sum(v, metricValue), d => +d.date);
@@ -150,7 +147,7 @@ function totalChart(data, {width, mode = "overall"} = {}) {
       width,
       height: toplineHeight(mode),
       y: {grid: true, label: "Count"},
-      x: {type: "utc", label: null, domain: xDomain, ticks: xTicks, tickFormat: xTickFormat},
+      x: {type: "utc", label: null, domain: xDomain},
       marks: [
         Plot.areaY(overall, {
           x: "date",
@@ -181,7 +178,7 @@ function totalChart(data, {width, mode = "overall"} = {}) {
     width,
     height: toplineHeight(mode),
     y: {grid: true, label: "Count"},
-    x: {type: "utc", label: null, domain: xDomain, ticks: xTicks, tickFormat: xTickFormat},
+    x: {type: "utc", label: null, domain: xDomain},
     color: {...namedColor, legend: true},
     marks: [
       Plot.areaY(named, Plot.stackY({
@@ -276,7 +273,7 @@ function percentChart(data, {width} = {}) {
     width,
     height: 350,
     y: {grid: true, label: "% of Total", domain: [0, 100]},
-    x: {type: "utc", label: null, domain: xDomain, ticks: xTicks, tickFormat: xTickFormat},
+    x: {type: "utc", label: null, domain: xDomain},
     color: {...namedColor, legend: true},
     marks: [
       Plot.areaY(pctData, Plot.stackY({
