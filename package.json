@@ -2,6 +2,7 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "setup": "uv venv .venv && uv pip install -r env/python-reqs.txt -p .venv/bin/python",
     "clean": "rm -rf docs/.observablehq/cache",
     "build": "rm -rf dist && observable build",
     "dev": "observable preview",
