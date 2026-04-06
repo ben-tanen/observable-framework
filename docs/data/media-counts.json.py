@@ -44,7 +44,9 @@ for file_info in files:
 
     date = day_data["date"]
     for service_id, metrics in day_data["summary"].items():
-        row = {"date": date, "service": service_id}
+        data_date = metrics.get("data_date")
+        stale = bool(data_date and data_date < date)
+        row = {"date": date, "service": service_id, "stale": stale}
         row.update(metrics)
         rows.append(row)
 

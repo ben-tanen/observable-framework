@@ -55,7 +55,7 @@ function metricValue(d) {
 // parse dates and filter to configured services
 const allData = raw
   .filter(d => serviceIds.includes(d.service))
-  .map(d => ({...d, date: d3.utcParse("%Y-%m-%d")(d.date)}));
+  .map(d => ({...d, date: d3.utcParse("%Y-%m-%d")(d.date), stale: !!d.stale}));
 ```
 
 ```js
@@ -321,32 +321,56 @@ function percentChartCard(data) {
 <!-- Per-service detail charts -->
 
 ```js
+// Determine y-axis domain: include zero if the data range is large relative to
+// the minimum value (min - 2 * range <= 0), otherwise pad around min/max by 10%
+// of the range to better reveal variation in high-baseline series.
+function yDomain(serviceData, metric) {
+  const values = serviceData.filter(d => !d.stale).map(d => d[metric]).filter(v => v != null);
+  if (!values.length) return undefined;
+  const min = d3.min(values);
+  const max = d3.max(values);
+  const range = max - min;
+  if (min - 3 * range <= 0) return undefined; // let Plot default (includes 0)
+  const pad = range * 0.5 || 1;
+  return [min - pad, max + pad];
+}
+
 function serviceChart(serviceData, config, metricInfo, {width} = {}) {
   const metric = metricInfo.metric;
   const yLabel = metricInfo.label;
   const decimals = metricInfo.decimals ?? 2;
+  const yDom = yDomain(serviceData, metric);
 
   return Plot.plot({
     width,
     height: 200,
-    y: {grid: true, label: yLabel},
+    y: {grid: true, label: yLabel, ...(yDom ? {domain: yDom} : {})},
     x: {type: "utc", label: null, domain: xDomain},
     marks: [
-      Plot.lineY(serviceData, {
+      // faded line connecting fresh points directly (bridges across stale gaps)
+      Plot.lineY(serviceData.filter(d => !d.stale), {
         x: "date",
         y: metric,
         stroke: color.apply(config.id),
         strokeWidth: 2,
-        tip: true,
-        title: (d) => `${config.name}\n${d3.utcFormat("%b %-d, %Y")(d.date)}: ${d[metric]?.toLocaleString("en-US", {minimumFractionDigits: decimals, maximumFractionDigits: decimals})}`
+        strokeOpacity: 0.25
       }),
-      Plot.dot(serviceData, {
+      // solid line that breaks at stale points (overdraws faded line for consecutive fresh segments)
+      Plot.lineY(serviceData, {
+        x: "date",
+        y: d => d.stale ? undefined : d[metric],
+        stroke: color.apply(config.id),
+        strokeWidth: 2
+      }),
+      Plot.dot(serviceData.filter(d => !d.stale), {
         x: "date",
         y: metric,
         fill: color.apply(config.id),
-        r: 3
+        r: 3,
+        tip: true,
+        title: (d) => `${config.name}\n${d3.utcFormat("%b %-d, %Y")(d.date)}: ${d[metric]?.toLocaleString("en-US", {minimumFractionDigits: decimals, maximumFractionDigits: decimals})}`
       }),
-      Plot.ruleY([0])
+      ...(yDom ? [] : [Plot.ruleY([0])])
     ]
   });
 }
@@ -383,7 +407,8 @@ function serviceCard(config) {
     const latestVal = latestRow
       ? latestRow[m.metric]?.toLocaleString("en-US", {minimumFractionDigits: m.decimals, maximumFractionDigits: m.decimals})
       : "—";
-    title.textContent = `${config.name}: ${latestVal}`;
+    const staleMarker = latestRow?.stale ? "*" : "";
+    title.textContent = `${config.name}: ${latestVal}${staleMarker}`;
   }
   updateTitle();
 
