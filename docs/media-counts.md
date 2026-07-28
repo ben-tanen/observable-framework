@@ -61,7 +61,7 @@ const allData = raw
 ```js
 const dateRange = view(Inputs.radio(
   new Map([["7d", 7], ["14d", 14], ["30d", 30], ["60d", 60], ["90d", 90], ["All", null]]),
-  {value: null, label: "Date range"}
+  {value: 30, label: "Date range"}
 ));
 ```
 
