@@ -18,28 +18,29 @@ const sources = json.sources;
 ```js
 // service display config
 const serviceConfig = [
-  { id: "youtube",      name: "Videos (YouTube)",     mainMetric: "count", additionalMetrics: [
+  { id: "youtube",      name: "Videos (YouTube)",       color: "#4e79a7", mainMetric: "count", additionalMetrics: [
     { metric: "total_length_min", label: "Total Duration (min)", decimals: 1 },
   ]},
-  { id: "letterboxd",  name: "Movies (Letterboxd)",  mainMetric: "count", additionalMetrics: [] },
-  { id: "feedly",       name: "Articles (Feedly)",      mainMetric: "count", additionalMetrics: [] },
-  { id: "goodreads",    name: "Books (Goodreads)",   mainMetric: "count", additionalMetrics: [] },
-  { id: "spotify",      name: "Podcasts (Spotify)",     mainMetric: "count", additionalMetrics: [
+  { id: "letterboxd",  name: "Movies (Letterboxd)",    color: "#f28e2c", mainMetric: "count", additionalMetrics: [] },
+  { id: "feedly",       name: "Articles (Feedly)",      color: "#e15759", mainMetric: "count", additionalMetrics: [] },
+  { id: "miniflux",     name: "Articles (Miniflux)",    color: "#bab0ab", mainMetric: "count", additionalMetrics: [] },
+  { id: "goodreads",    name: "Books (Goodreads)",     color: "#76b7b2", mainMetric: "count", additionalMetrics: [] },
+  { id: "spotify",      name: "Podcasts (Spotify)",     color: "#59a14f", mainMetric: "count", additionalMetrics: [
     { metric: "total_duration_hrs",     label: "Total Duration (hrs)",     decimals: 2 },
     { metric: "remaining_duration_hrs", label: "Remaining Duration (hrs)", decimals: 2 },
   ]},
-  { id: "sequel_shows", name: "Shows (Sequel)",    mainMetric: "count", additionalMetrics: [
+  { id: "sequel_shows", name: "Shows (Sequel)",        color: "#edc949", mainMetric: "count", additionalMetrics: [
     { metric: "to_watch_runtime_hrs", label: "Remaining Duration (hrs)",   decimals: 2 },
     { metric: "total_eps",           label: "Episodes (Total)",         decimals: 0 },
     { metric: "count_want_to_watch", label: "Count (Want to Watch)",    decimals: 0 },
     { metric: "total_eps_wtw_shows", label: "Episodes (Want to Watch)", decimals: 0 },
   ]},
-  { id: "sequel_games", name: "Games (Sequel)", mainMetric: "count", additionalMetrics: [] },
-  { id: "musicbox",     name: "Music (MusicBox)",    mainMetric: "count", additionalMetrics: [
+  { id: "sequel_games", name: "Games (Sequel)",        color: "#af7aa1", mainMetric: "count", additionalMetrics: [] },
+  { id: "musicbox",     name: "Music (MusicBox)",       color: "#ff9da7", mainMetric: "count", additionalMetrics: [
     { metric: "count_new",          label: "Count (New)", decimals: 0 },
     { metric: "total_duration_min", label: "Total Duration (min)", decimals: 1 }
   ]},
-  { id: "raindrop",     name: "Links (Raindrop)",    mainMetric: "count", additionalMetrics: [] },
+  { id: "raindrop",     name: "Links (Raindrop)",       color: "#9c755f", mainMetric: "count", additionalMetrics: [] },
 ];
 
 const serviceIds = serviceConfig.map(d => d.id);
@@ -81,7 +82,7 @@ const color = Plot.scale({
   color: {
     type: "categorical",
     domain: serviceConfig.map(d => d.id),
-    range: d3.schemeTableau10
+    range: serviceConfig.map(d => d.color)
   }
 });
 ```
@@ -102,7 +103,7 @@ const totalCount = d3.sum(latest, d => d.count);
   </div>
   <div class="card">
     <h2>Services Tracked</h2>
-    <span class="big">${latest.length}</span>
+    <span class="big">${serviceConfig.length}</span>
   </div>
   <div class="card">
     <h2>Days Tracked</h2>
@@ -122,7 +123,7 @@ const namedColor = Plot.scale({
   color: {
     type: "categorical",
     domain: serviceConfig.map(d => d.name),
-    range: d3.schemeTableau10
+    range: serviceConfig.map(d => d.color)
   }
 });
 const serviceOrder = serviceConfig.map(d => d.name);
@@ -403,11 +404,11 @@ function serviceCard(config) {
 
   function updateTitle() {
     const m = allMetrics[selectedIdx];
-    const latestRow = serviceData.filter(d => +d.date === +latestDate)[0];
+    const latestRow = d3.greatest(serviceData, d => d.date);
     const latestVal = latestRow
       ? latestRow[m.metric]?.toLocaleString("en-US", {minimumFractionDigits: m.decimals, maximumFractionDigits: m.decimals})
       : "—";
-    const staleMarker = latestRow?.stale ? "*" : "";
+    const staleMarker = latestRow && (latestRow.stale || +latestRow.date < +latestDate) ? "*" : "";
     title.textContent = `${config.name}: ${latestVal}${staleMarker}`;
   }
   updateTitle();
