@@ -22,8 +22,7 @@ const serviceConfig = [
     { metric: "total_length_min", label: "Total Duration (min)", decimals: 1 },
   ]},
   { id: "letterboxd",  name: "Movies (Letterboxd)",    color: "#f28e2c", mainMetric: "count", additionalMetrics: [] },
-  { id: "feedly",       name: "Articles (Feedly)",      color: "#e15759", mainMetric: "count", additionalMetrics: [] },
-  { id: "miniflux",     name: "Articles (Miniflux)",    color: "#bab0ab", mainMetric: "count", additionalMetrics: [] },
+  { id: "miniflux",     name: "Articles (Miniflux)",    color: "#e15759", mainMetric: "count", additionalMetrics: [] },
   { id: "goodreads",    name: "Books (Goodreads)",     color: "#76b7b2", mainMetric: "count", additionalMetrics: [] },
   { id: "spotify",      name: "Podcasts (Spotify)",     color: "#59a14f", mainMetric: "count", additionalMetrics: [
     { metric: "total_duration_hrs",     label: "Total Duration (hrs)",     decimals: 2 },
