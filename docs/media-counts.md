@@ -91,6 +91,39 @@ const color = Plot.scale({
 });
 ```
 
+```js
+// change-over-period subtitle: DELTA_MODE is "raw", "pct", or "both"
+const DELTA_MODE = "both";
+
+function deltaPeriodLabel() {
+  return dateRange != null ? `over last ${dateRange}d` : `since ${d3.utcFormat("%b %-d, %Y")(xDomain[0])}`;
+}
+
+// rows: [{date, value}]; compares first vs last non-null value in the range
+function deltaText(rows, {decimals = 0, mode = DELTA_MODE} = {}) {
+  const valid = rows.filter(d => d.value != null).sort((a, b) => d3.ascending(a.date, b.date));
+  if (valid.length < 2) return "";
+  const first = valid[0].value;
+  const last = valid[valid.length - 1].value;
+  const sign = (v) => v > 0 ? "+" : v < 0 ? "−" : "±";
+
+  const diff = last - first;
+  const rawStr = `${sign(diff)}${Math.abs(diff).toLocaleString("en-US", {minimumFractionDigits: decimals, maximumFractionDigits: decimals})}`;
+  const pct = first ? ((last - first) / first) * 100 : null;
+  const pctStr = pct != null ? `${sign(pct)}${Math.round(Math.abs(pct))}%` : null;
+
+  if (mode === "pct") return pctStr ? `${pctStr} ${deltaPeriodLabel()}` : "";
+  if (mode === "both" && pctStr) return `${rawStr} ${deltaPeriodLabel()} (${pctStr})`;
+  return `${rawStr} ${deltaPeriodLabel()}`;
+}
+
+function subtitleEl() {
+  const el = document.createElement("div");
+  el.style.cssText = "font-size:0.8rem; color:var(--theme-foreground-muted); margin-top:0.1rem;";
+  return el;
+}
+```
+
 <!-- Summary cards -->
 
 ```js
@@ -223,7 +256,15 @@ function totalChartCard(data) {
   const title = document.createElement("h2");
   title.style.margin = "0";
   title.textContent = "Total counts over time";
-  header.append(title);
+  const overall = Array.from(
+    d3.rollup(data, values => d3.sum(values, metricValue), d => +d.date),
+    ([dateMs, value]) => ({date: new Date(dateMs), value})
+  );
+  const subtitle = subtitleEl();
+  subtitle.textContent = deltaText(overall);
+  const titleBlock = document.createElement("div");
+  titleBlock.append(title, subtitle);
+  header.append(titleBlock);
 
   const chartContainer = document.createElement("div");
   let mode = "overall";
@@ -404,7 +445,10 @@ function serviceCard(config) {
   header.style.cssText = "display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.25rem;";
   const title = document.createElement("h2");
   title.style.margin = "0";
-  header.append(title);
+  const subtitle = subtitleEl();
+  const titleBlock = document.createElement("div");
+  titleBlock.append(title, subtitle);
+  header.append(titleBlock);
 
   function updateTitle() {
     const m = allMetrics[selectedIdx];
@@ -414,6 +458,10 @@ function serviceCard(config) {
       : "—";
     const staleMarker = latestRow && (latestRow.stale || +latestRow.date < +latestDate) ? "*" : "";
     title.textContent = `${config.name}: ${latestVal}${staleMarker}`;
+    subtitle.textContent = deltaText(
+      serviceData.filter(d => !d.stale).map(d => ({date: d.date, value: d[m.metric]})),
+      {decimals: m.decimals}
+    );
   }
   updateTitle();
 
