@@ -42,7 +42,7 @@ Secrets are referenced (not stored) in `env/.env` using `op://` URIs.
 
 ### CI / GitHub Actions
 
-The `publish.yml` workflow builds and deploys to GitHub Pages on push to `master` and on a 12-hour cron schedule. It installs Python dependencies globally (no venv) and injects secrets via GitHub Actions secrets — no 1Password required.
+The `publish.yml` workflow builds and deploys to GitHub Pages on push to `master` or when triggered manually (`workflow_dispatch`). Pull requests to `master` also run a build-only check (no deploy) so data loaders and secrets are verified before merging. Builds install Python dependencies globally (no venv) and inject secrets via GitHub Actions secrets — no 1Password required.
 
 ## Command reference
 
