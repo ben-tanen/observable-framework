@@ -6,6 +6,10 @@ toc: false
 
 # Media Counts
 
+This is a page I use to help monitor my plethora of "to read", "to watch", "to *consume*" lists and try to keep up with it all! More items is not necessarily a bad thing (nothing wrong with watching more films!), but I generally try to keep these lists "manageable within reason".
+
+For a bit more context on this dashboard, the data, and my feelings on it all, see the [*Updates* section](#updates) at the bottom of this page.
+
 ```js
 const json = FileAttachment("data/media-counts.json").json();
 ```
@@ -18,29 +22,29 @@ const sources = json.sources;
 ```js
 // service display config (optional `url` links the service name in parens in the card title)
 const serviceConfig = [
-  { id: "youtube",      name: "Videos (YouTube)",       color: "#4e79a7", mainMetric: "count", url: "https://www.youtube.com/playlist?list=WL", additionalMetrics: [
+  { id: "youtube", name: "Videos (YouTube)", color: "#4e79a7", mainMetric: "count", url: "https://www.youtube.com/playlist?list=WL", additionalMetrics: [
     { metric: "total_length_min", label: "Total Duration (min)", decimals: 1 },
   ]},
-  { id: "letterboxd",  name: "Movies (Letterboxd)",    color: "#f28e2c", mainMetric: "count", url: "https://letterboxd.com/btanen/watchlist/", additionalMetrics: [] },
-  { id: "miniflux",     name: "Articles (Miniflux)",    color: "#e15759", mainMetric: "count", url: "https://rss.ben-tanen.com/unread/", additionalMetrics: [] },
-  { id: "feedly",       name: "Articles (Feedly)",      color: "#bab0ab", mainMetric: "count", additionalMetrics: [] },
-  { id: "goodreads",    name: "Books (Goodreads)",     color: "#76b7b2", mainMetric: "count", url: "https://www.goodreads.com/review/list/171721734?shelf=to-read", additionalMetrics: [] },
-  { id: "spotify",      name: "Podcasts (Spotify)",     color: "#59a14f", mainMetric: "count", url: "https://open.spotify.com/collection/your-episodes", additionalMetrics: [
-    { metric: "total_duration_hrs",     label: "Total Duration (hrs)",     decimals: 2 },
+  { id: "letterboxd", name: "Movies (Letterboxd)", color: "#f28e2c", mainMetric: "count", url: "https://letterboxd.com/btanen/watchlist/", additionalMetrics: [] },
+  { id: "miniflux", name: "Articles (Miniflux)", color: "#e15759", mainMetric: "count", url: "https://rss.ben-tanen.com/unread/", additionalMetrics: [] },
+  { id: "feedly", name: "Articles (Feedly)", color: "#bab0ab", mainMetric: "count", additionalMetrics: [] },
+  { id: "goodreads", name: "Books (Goodreads)", color: "#76b7b2", mainMetric: "count", url: "https://www.goodreads.com/review/list/171721734?shelf=to-read", additionalMetrics: [] },
+  { id: "spotify", name: "Podcasts (Spotify)", color: "#59a14f", mainMetric: "count", url: "https://open.spotify.com/collection/your-episodes", additionalMetrics: [
+    { metric: "total_duration_hrs", label: "Total Duration (hrs)", decimals: 2 },
     { metric: "remaining_duration_hrs", label: "Remaining Duration (hrs)", decimals: 2 },
   ]},
-  { id: "sequel_shows", name: "Shows (Sequel)",        color: "#edc949", mainMetric: "count", additionalMetrics: [
-    { metric: "to_watch_runtime_hrs", label: "Remaining Duration (hrs)",   decimals: 2 },
-    { metric: "total_eps",           label: "Episodes (Total)",         decimals: 0 },
-    { metric: "count_want_to_watch", label: "Count (Want to Watch)",    decimals: 0 },
+  { id: "sequel_shows", name: "Shows (Sequel)", color: "#edc949", mainMetric: "count", additionalMetrics: [
+    { metric: "to_watch_runtime_hrs", label: "Remaining Duration (hrs)", decimals: 2 },
+    { metric: "total_eps", label: "Episodes (Total)", decimals: 0 },
+    { metric: "count_want_to_watch", label: "Count (Want to Watch)", decimals: 0 },
     { metric: "total_eps_wtw_shows", label: "Episodes (Want to Watch)", decimals: 0 },
   ]},
-  { id: "sequel_games", name: "Games (Sequel)",        color: "#af7aa1", mainMetric: "count", additionalMetrics: [] },
-  { id: "musicbox",     name: "Music (MusicBox)",       color: "#ff9da7", mainMetric: "count", additionalMetrics: [
-    { metric: "count_new",          label: "Count (New)", decimals: 0 },
+  { id: "sequel_games", name: "Games (Sequel)", color: "#af7aa1", mainMetric: "count", additionalMetrics: [] },
+  { id: "musicbox", name: "Music (MusicBox)", color: "#ff9da7", mainMetric: "count", additionalMetrics: [
+    { metric: "count_new", label: "Count (New)", decimals: 0 },
     { metric: "total_duration_min", label: "Total Duration (min)", decimals: 1 }
   ]},
-  { id: "raindrop",     name: "Links (Raindrop)",       color: "#9c755f", mainMetric: "count", url: "https://app.raindrop.io/my/0", additionalMetrics: [] },
+  { id: "raindrop", name: "Links (Raindrop)", color: "#9c755f", mainMetric: "count", url: "https://app.raindrop.io/my/0", additionalMetrics: [] },
 ];
 
 const serviceIds = serviceConfig.map(d => d.id);
@@ -537,8 +541,30 @@ const sourceTable = Inputs.table(
 );
 ```
 
-<details>
+<details id="data-sources">
   <summary>View all data sources from <a href="https://github.com/ben-tanen/media-count-automation/actions" target="_blank" rel="noopener noreferrer"><code>media-count-automation</code> GH Action</a></summary>
 
   ${sourceTable}
 </details>
+
+***
+
+## Updates
+
+```js
+const updates = FileAttachment("data/media-counts-update-log.json").json();
+```
+
+<style>
+  .update-body { font: 17px/1.5 var(--serif); }
+  .update-body > div > :first-child { margin-top: 0.5rem; }
+  .update-body > div > :last-child { margin-bottom: 0; }
+</style>
+
+```js
+updates.sort((a, b) => d3.descending(a.date, b.date)).forEach(update => {
+  const body = document.createElement("div");
+  body.innerHTML = update.content;
+  display(html`<details class="card update-body"><summary><b>${update.date}</b>: <i>${update.title}</i></summary>${body}</details>`);
+});
+```
