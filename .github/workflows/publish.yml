@@ -3,6 +3,9 @@ on:
   workflow_dispatch:
   push:
     branches: ["master"]
+  # build-only check on PRs (deploy job is skipped below)
+  pull_request:
+    branches: ["master"]
   # schedule:
   #   - cron: "0 */12 * * *"
 permissions:
@@ -58,6 +61,7 @@ jobs:
 
   deploy:
     needs: build
+    if: github.event_name != 'pull_request'
     permissions:
       pages: write
       id-token: write
