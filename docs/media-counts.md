@@ -23,6 +23,7 @@ const serviceConfig = [
   ]},
   { id: "letterboxd",  name: "Movies (Letterboxd)",    color: "#f28e2c", mainMetric: "count", additionalMetrics: [] },
   { id: "miniflux",     name: "Articles (Miniflux)",    color: "#e15759", mainMetric: "count", additionalMetrics: [] },
+  { id: "feedly",       name: "Articles (Feedly)",      color: "#bab0ab", mainMetric: "count", additionalMetrics: [] },
   { id: "goodreads",    name: "Books (Goodreads)",     color: "#76b7b2", mainMetric: "count", additionalMetrics: [] },
   { id: "spotify",      name: "Podcasts (Spotify)",     color: "#59a14f", mainMetric: "count", additionalMetrics: [
     { metric: "total_duration_hrs",     label: "Total Duration (hrs)",     decimals: 2 },
@@ -73,6 +74,10 @@ const xDomain = [cutoff ?? d3.min(allData, d => d.date), maxDate];
 
 // compute daily totals for percentage chart
 const dailyTotals = d3.rollup(data, v => d3.sum(v, metricValue), d => +d.date);
+
+// only show services with non-stale data in the selected date range
+const visibleServices = new Set(data.filter(d => !d.stale).map(d => d.service));
+const visibleConfig = serviceConfig.filter(d => visibleServices.has(d.id));
 ```
 
 ```js
@@ -102,7 +107,7 @@ const totalCount = d3.sum(latest, d => d.count);
   </div>
   <div class="card">
     <h2>Services Tracked</h2>
-    <span class="big">${serviceConfig.length}</span>
+    <span class="big">${visibleConfig.length}</span>
   </div>
   <div class="card">
     <h2>Days Tracked</h2>
@@ -121,11 +126,11 @@ const totalCount = d3.sum(latest, d => d.count);
 const namedColor = Plot.scale({
   color: {
     type: "categorical",
-    domain: serviceConfig.map(d => d.name),
-    range: serviceConfig.map(d => d.color)
+    domain: visibleConfig.map(d => d.name),
+    range: visibleConfig.map(d => d.color)
   }
 });
-const serviceOrder = serviceConfig.map(d => d.name);
+const serviceOrder = visibleConfig.map(d => d.name);
 const TOPLINE_BASE_HEIGHT = 345;
 const TOPLINE_LEGEND_SPACE = 38;
 
@@ -446,7 +451,7 @@ function serviceCard(config) {
 
 ```js
 const serviceGrid = html`<div class="grid grid-cols-3">
-  ${serviceConfig.map(config => serviceCard(config))}
+  ${visibleConfig.map(config => serviceCard(config))}
 </div>`;
 
 display(serviceGrid);
