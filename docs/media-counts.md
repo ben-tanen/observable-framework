@@ -16,16 +16,16 @@ const sources = json.sources;
 ```
 
 ```js
-// service display config
+// service display config (optional `url` links the service name in parens in the card title)
 const serviceConfig = [
-  { id: "youtube",      name: "Videos (YouTube)",       color: "#4e79a7", mainMetric: "count", additionalMetrics: [
+  { id: "youtube",      name: "Videos (YouTube)",       color: "#4e79a7", mainMetric: "count", url: "https://www.youtube.com/playlist?list=WL", additionalMetrics: [
     { metric: "total_length_min", label: "Total Duration (min)", decimals: 1 },
   ]},
-  { id: "letterboxd",  name: "Movies (Letterboxd)",    color: "#f28e2c", mainMetric: "count", additionalMetrics: [] },
-  { id: "miniflux",     name: "Articles (Miniflux)",    color: "#e15759", mainMetric: "count", additionalMetrics: [] },
+  { id: "letterboxd",  name: "Movies (Letterboxd)",    color: "#f28e2c", mainMetric: "count", url: "https://letterboxd.com/btanen/watchlist/", additionalMetrics: [] },
+  { id: "miniflux",     name: "Articles (Miniflux)",    color: "#e15759", mainMetric: "count", url: "https://rss.ben-tanen.com/unread/", additionalMetrics: [] },
   { id: "feedly",       name: "Articles (Feedly)",      color: "#bab0ab", mainMetric: "count", additionalMetrics: [] },
-  { id: "goodreads",    name: "Books (Goodreads)",     color: "#76b7b2", mainMetric: "count", additionalMetrics: [] },
-  { id: "spotify",      name: "Podcasts (Spotify)",     color: "#59a14f", mainMetric: "count", additionalMetrics: [
+  { id: "goodreads",    name: "Books (Goodreads)",     color: "#76b7b2", mainMetric: "count", url: "https://www.goodreads.com/review/list/171721734?shelf=to-read", additionalMetrics: [] },
+  { id: "spotify",      name: "Podcasts (Spotify)",     color: "#59a14f", mainMetric: "count", url: "https://open.spotify.com/collection/your-episodes", additionalMetrics: [
     { metric: "total_duration_hrs",     label: "Total Duration (hrs)",     decimals: 2 },
     { metric: "remaining_duration_hrs", label: "Remaining Duration (hrs)", decimals: 2 },
   ]},
@@ -40,7 +40,7 @@ const serviceConfig = [
     { metric: "count_new",          label: "Count (New)", decimals: 0 },
     { metric: "total_duration_min", label: "Total Duration (min)", decimals: 1 }
   ]},
-  { id: "raindrop",     name: "Links (Raindrop)",       color: "#9c755f", mainMetric: "count", additionalMetrics: [] },
+  { id: "raindrop",     name: "Links (Raindrop)",       color: "#9c755f", mainMetric: "count", url: "https://app.raindrop.io/my/0", additionalMetrics: [] },
 ];
 
 const serviceIds = serviceConfig.map(d => d.id);
@@ -423,6 +423,14 @@ function serviceChart(serviceData, config, metricInfo, {width} = {}) {
 ```
 
 ```js
+// title name, with the parenthesized service (or whole name) linked when config.url is set
+function serviceNameEl(config) {
+  if (!config.url) return config.name;
+  const link = (text) => html`<a href="${config.url}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+  const match = config.name.match(/^(.*\()(.+)(\))$/);
+  return match ? html`<span>${match[1]}${link(match[2])}${match[3]}</span>` : link(config.name);
+}
+
 function serviceCard(config) {
   const serviceData = data.filter(d => d.service === config.id);
 
@@ -457,7 +465,7 @@ function serviceCard(config) {
       ? latestRow[m.metric]?.toLocaleString("en-US", {minimumFractionDigits: m.decimals, maximumFractionDigits: m.decimals})
       : "—";
     const staleMarker = latestRow && (latestRow.stale || +latestRow.date < +latestDate) ? "*" : "";
-    title.textContent = `${config.name}: ${latestVal}${staleMarker}`;
+    title.replaceChildren(serviceNameEl(config), `: ${latestVal}${staleMarker}`);
     subtitle.textContent = deltaText(
       serviceData.filter(d => !d.stale).map(d => ({date: d.date, value: d[m.metric]})),
       {decimals: m.decimals}
@@ -530,7 +538,7 @@ const sourceTable = Inputs.table(
 ```
 
 <details>
-  <summary>View all data sources</summary>
+  <summary>View all data sources from <a href="https://github.com/ben-tanen/media-count-automation/actions" target="_blank" rel="noopener noreferrer"><code>media-count-automation</code> GH Action</a></summary>
 
   ${sourceTable}
 </details>
