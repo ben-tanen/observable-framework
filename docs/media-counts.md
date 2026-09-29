@@ -179,18 +179,18 @@ const latestDate = d3.max(data, d => d.date);
 const latest = data.filter(d => +d.date === +latestDate);
 const totalCount = d3.sum(latest, d => d.count);
 
-// daily total across services, used for net change KPI and the total chart subtitle
+// daily total across services, used for the net change KPI
 const overallSeries = Array.from(
   d3.rollup(data, values => d3.sum(values, metricValue), d => +d.date),
   ([dateMs, value]) => ({date: new Date(dateMs), value})
 );
 
-// service with the largest absolute % change over the range
+// service with the largest absolute raw change over the range (the longest bar in the net change chart)
 const fastest = d3.greatest(
   visibleConfig
     .map(config => ({config, series: serviceSeries(config.id), stats: deltaStats(serviceSeries(config.id))}))
-    .filter(d => d.stats?.pct != null),
-  d => Math.abs(d.stats.pct)
+    .filter(d => d.stats),
+  d => Math.abs(d.stats.diff)
 );
 ```
 
@@ -232,7 +232,7 @@ const namedColor = Plot.scale({
   }
 });
 const serviceOrder = visibleConfig.map(d => d.name);
-const TOPLINE_BASE_HEIGHT = 345;
+const TOPLINE_BASE_HEIGHT = 365;
 const TOPLINE_LEGEND_SPACE = 38;
 
 function toplineHeight(mode) {
@@ -251,6 +251,7 @@ function totalChart(data, {width, mode = "overall"} = {}) {
   if (mode === "overall") {
     return Plot.plot({
       width,
+      ariaLabel: "Total items across all lists over time",
       height: toplineHeight(mode),
       y: {grid: true, label: "Count"},
       x: {type: "utc", label: null, domain: xDomain},
@@ -282,6 +283,7 @@ function totalChart(data, {width, mode = "overall"} = {}) {
 
   return Plot.plot({
     width,
+    ariaLabel: "Items over time, stacked by list",
     height: toplineHeight(mode),
     y: {grid: true, label: "Count"},
     x: {type: "utc", label: null, domain: xDomain},
@@ -324,16 +326,13 @@ function totalChartCard(data) {
   const title = document.createElement("h2");
   title.style.margin = "0";
   title.textContent = "Total counts over time";
-  const subtitle = subtitleEl();
-  subtitle.textContent = deltaText(overallSeries);
-  const titleBlock = document.createElement("div");
-  titleBlock.append(title, subtitle);
-  header.append(titleBlock);
+  header.append(title);
 
   const chartContainer = document.createElement("div");
   let currentWidth = 0;
   // mode lives in toplineState so it survives date range changes (which rebuild this card)
   const toggle = Inputs.radio(new Map([["Total", "overall"], ["By service", "split"]]), {value: toplineState.mode});
+  toggle.setAttribute("aria-label", "Total chart view");
   toggle.style.cssText = "width:auto; margin:0; font-size:0.75rem;";
   header.append(toggle);
 
@@ -384,6 +383,8 @@ function changeChart(data, {width} = {}) {
 
   return Plot.plot({
     width,
+    ariaLabel: `Net change in items by list ${deltaPeriodLabel()}`,
+    ariaDescription: changes.map(d => `${d.name}: ${d.label}`).join("; "),
     // taller than 350 to fill the card, which stretches to match the total chart beside it
     height: 380,
     marginLeft: 115,
@@ -444,6 +445,7 @@ function serviceChart(rawServiceData, config, metricInfo, {width} = {}) {
 
   return Plot.plot({
     width,
+    ariaLabel: `${config.name}: ${yLabel} over time`,
     height: 200,
     y: {grid: true, label: yLabel, ...(yDom ? {domain: yDom} : {})},
     x: {type: "utc", label: null, domain: xDomain},
@@ -529,6 +531,7 @@ function serviceCard(config) {
 
   if (hasMultiple) {
     const select = document.createElement("select");
+    select.setAttribute("aria-label", `${config.name} metric`);
     select.style.cssText = "font-size:0.75rem; padding:0.1rem 0.3rem; border:1px solid var(--theme-foreground-faint); border-radius:4px; background:var(--theme-background); color:var(--theme-foreground);";
     for (let i = 0; i < allMetrics.length; i++) {
       const opt = document.createElement("option");
