@@ -105,7 +105,7 @@ const cutoff = dateRange != null ? d3.utcDay.offset(maxDate, -dateRange) : null;
 const data = cutoff ? allData.filter(d => d.date >= cutoff) : allData;
 const xDomain = [cutoff ?? d3.min(allData, d => d.date), maxDate];
 
-// compute daily totals for percentage chart
+// compute daily totals for "% of total" in the by-service tooltip
 const dailyTotals = d3.rollup(data, v => d3.sum(v, metricValue), d => +d.date);
 
 // only show services with non-stale data in the selected date range
@@ -308,7 +308,7 @@ function totalChart(data, {width, mode = "overall"} = {}) {
         order: serviceOrder,
         r: 3,
         tip: true,
-        title: (d) => `${d.name}: ${metricValue(d).toLocaleString("en-US")}`
+        title: (d) => `${d.name}: ${metricValue(d).toLocaleString("en-US")} (${Math.round((metricValue(d) / (dailyTotals.get(+d.date) || 1)) * 100)}% of total)`
       })),
       Plot.ruleY([0])
     ]
@@ -362,61 +362,55 @@ function totalChartCard(data) {
 
 <div class="grid grid-cols-2">
   ${totalChartCard(data)}
-  ${percentChartCard(data)}
+  ${changeChartCard(data)}
 </div>
 
 ```js
-function percentChart(data, {width} = {}) {
-  const pctData = data.map(d => {
-    const total = dailyTotals.get(+d.date) || 1;
-    return {...d, name: serviceNames[d.service], pct: (metricValue(d) / total) * 100};
-  });
+// net change by list: one bar per service for the selected range (last minus first
+// non-stale value, same as the card subtitles), growth right / shrinkage left, sorted
+function changeChart(data, {width} = {}) {
+  const changes = visibleConfig
+    .map(config => {
+      const series = serviceSeries(config.id);
+      const stats = deltaStats(series);
+      return stats && {name: config.name, diff: stats.diff, label: deltaText(series, {label: false, mode: "raw"})};
+    })
+    .filter(Boolean)
+    .sort((a, b) => d3.descending(a.diff, b.diff));
+  const fmtChange = (v) => v === 0 ? "0" : `${v > 0 ? "+" : "−"}${Math.abs(v).toLocaleString("en-US")}`;
+  // pad each side only as far as the data goes, leaving room for end labels
+  const [minDiff, maxDiff] = [d3.min(changes, d => d.diff) ?? 0, d3.max(changes, d => d.diff) ?? 0];
+  const pad = (maxDiff - minDiff || 1) * 0.12;
 
   return Plot.plot({
     width,
-    height: 350,
-    y: {grid: true, label: "% of Total", domain: [0, 100]},
-    x: {type: "utc", label: null, domain: xDomain},
-    color: {...namedColor, legend: true},
+    // taller than 350 to fill the card, which stretches to match the total chart beside it
+    height: 400,
+    marginLeft: 115,
+    marginRight: 10,
+    x: {grid: true, label: "Net change", tickFormat: fmtChange, domain: [Math.min(0, minDiff) - pad, Math.max(0, maxDiff) + pad]},
+    y: {label: null, domain: changes.map(d => d.name), tickSize: 0},
+    color: namedColor,
     marks: [
-      Plot.areaY(pctData, Plot.stackY({
-        x: "date",
-        y: "pct",
-        fill: "name",
-        fillOpacity: 0.4,
-        order: serviceOrder,
-      })),
-      Plot.lineY(pctData, Plot.stackY2({
-        x: "date",
-        y: "pct",
-        stroke: "name",
-        strokeWidth: 2,
-        order: serviceOrder,
-      })),
-      Plot.dot(pctData, Plot.stackY2({
-        x: "date",
-        y: "pct",
-        fill: "name",
-        order: serviceOrder,
-        r: 3,
-        tip: true,
-        title: (d) => `${d.name}: ${d.pct.toFixed(1)}%`
-      })),
-      Plot.ruleY([0])
+      Plot.barX(changes, {x: "diff", y: "name", fill: "name"}),
+      // labels just past each bar's end (textAnchor is constant per mark, so split by sign)
+      Plot.text(changes.filter(d => d.diff >= 0), {x: "diff", y: "name", text: "label", textAnchor: "start", dx: 4, fill: "currentColor", fontSize: 11}),
+      Plot.text(changes.filter(d => d.diff < 0), {x: "diff", y: "name", text: "label", textAnchor: "end", dx: -4, fill: "currentColor", fontSize: 11}),
+      Plot.ruleX([0], {stroke: "var(--theme-foreground-muted)"})
     ]
   });
 }
 
-function percentChartCard(data) {
+function changeChartCard(data) {
   const card = document.createElement("div");
   card.className = "card";
 
   const title = document.createElement("h2");
   title.style.margin = "0 0 0.5rem 0";
-  title.textContent = "Share of total over time";
+  title.textContent = `Net change by list (${deltaPeriodLabel()})`;
   card.append(title);
 
-  card.append(resize((width) => percentChart(data, {width})));
+  card.append(resize((width) => changeChart(data, {width})));
   return card;
 }
 ```
