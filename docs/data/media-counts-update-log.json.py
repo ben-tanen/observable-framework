@@ -1,19 +1,19 @@
-import os, sys, json
-import html
+import sys, json, re, base64, html as html_lib
 import requests
+import markdown
 
 # import secrets (for use below)
 secrets = json.load(open("env/secrets.json"))
 db_id = secrets['notion-media-count-update-log-db-id']
 
 # define notion api params
-notion_api_key = secrets["notion-api-key"]
-notion_api_query_url = f"https://api.notion.com/v1/databases/{db_id}/query"
 notion_api_header = {
     "Authorization": f"Bearer {secrets['notion-api-key']}",
     "Notion-Version": "2022-06-28",
     "Content-Type": "application/json"
 }
+# the page markdown endpoint needs a newer api version than the database query
+notion_markdown_header = {**notion_api_header, "Notion-Version": "2026-03-11"}
 
 # get first batch of results
 init_req = requests.post(f"https://api.notion.com/v1/databases/{db_id}/query",
@@ -44,79 +44,68 @@ while req.json()["has_more"]:
     results += req.json()["results"]
 
 
-# get all child blocks of a page/block (paginated)
-def get_blocks(block_id):
-    blocks = []
-    params = {"page_size": 100}
-    while True:
-        resp = requests.get(f"https://api.notion.com/v1/blocks/{block_id}/children",
-            headers = notion_api_header, params = params)
-        assert resp.status_code == 200, f"Notion block fetch failed for {block_id}: {resp.text}"
-        body = resp.json()
-        blocks += body["results"]
-        if not body["has_more"]:
-            return blocks
-        params["start_cursor"] = body["next_cursor"]
+# get a page's full body (including nested blocks) as notion-flavored markdown
+def get_page_markdown(page_id):
+    resp = requests.get(f"https://api.notion.com/v1/pages/{page_id}/markdown", headers = notion_markdown_header)
+    assert resp.status_code == 200, f"Notion markdown fetch failed for {page_id}: {resp.text}"
+    body = resp.json()
+    if body.get("truncated") or body.get("unknown_block_ids"):
+        print(f"warning: page {page_id} has truncated or unsupported blocks: {body.get('unknown_block_ids')}", file=sys.stderr)
+    return body["markdown"]
 
 
-# convert notion rich text to html (annotations, links, and in-block newlines)
-def rich_text_to_html(rich_text):
-    out = ""
-    for rt in rich_text:
-        text = html.escape(rt["plain_text"]).replace("\n", "<br>")
-        ann = rt["annotations"]
-        if ann["code"]: text = f"<code>{text}</code>"
-        if ann["bold"]: text = f"<strong>{text}</strong>"
-        if ann["italic"]: text = f"<em>{text}</em>"
-        if ann["strikethrough"]: text = f"<s>{text}</s>"
-        if ann["underline"]: text = f"<u>{text}</u>"
-        if rt.get("href"): text = f'<a href="{html.escape(rt["href"])}" target="_blank" rel="noopener noreferrer">{text}</a>'
-        out += text
-    return out
+LIST_RE = re.compile(r"^\s*([-*+]|\d+\.)\s")
+
+def list_kind(line):
+    m = LIST_RE.match(line)
+    return None if not m else ("ol" if m.group(1)[0].isdigit() else "ul")
+
+# notion joins top-level blocks with single newlines, but markdown needs blank lines between
+# blocks; add them everywhere except inside code fences and between items of the same list
+def separate_blocks(md):
+    lines = md.split("\n")
+    out, in_fence = [], False
+    for i, line in enumerate(lines):
+        out.append(line)
+        if line.strip().startswith("```"):
+            in_fence = not in_fence
+        if in_fence or i == len(lines) - 1:
+            continue
+        nxt = lines[i + 1]
+        if not line.strip() or not nxt.strip():
+            continue
+        is_list = bool(LIST_RE.match(line)) or line.startswith((" ", "\t"))
+        next_is_list = bool(LIST_RE.match(nxt)) or nxt.startswith((" ", "\t"))
+        # nested children stay attached; a bullet -> numbered switch starts a new list
+        if is_list and next_is_list and (nxt.startswith((" ", "\t")) or list_kind(line) == list_kind(nxt)):
+            continue
+        out.append("")
+    return "\n".join(out)
 
 
-# convert a list of blocks to html, grouping consecutive list items into <ul>/<ol>
-LIST_TAGS = {"bulleted_list_item": "ul", "numbered_list_item": "ol", "to_do": "ul"}
-SIMPLE_TAGS = {"paragraph": "p", "heading_1": "h3", "heading_2": "h4", "heading_3": "h5", "quote": "blockquote"}
+# notion-hosted files come back as pre-signed urls that expire shortly after the build,
+# so inline them as data uris; external image urls are left as-is
+NOTION_FILE_HOSTS = ("prod-files-secure.s3", "s3.us-west-2.amazonaws.com", "file.notion.so")
 
-def blocks_to_html(blocks):
-    out = ""
-    open_list = None
-    for block in blocks:
-        btype = block["type"]
-        data = block[btype]
+def inline_notion_images(html):
+    def replace(match):
+        url = html_lib.unescape(match.group(2))  # markdown escapes & -> &amp; in attributes, which breaks the s3 signature
+        if not any(host in url for host in NOTION_FILE_HOSTS):
+            return match.group(0)
+        resp = requests.get(url)
+        assert resp.status_code == 200, f"Notion image download failed ({resp.status_code}): {url[:80]}"
+        mime = resp.headers.get("Content-Type", "image/png").split(";")[0]
+        data = base64.b64encode(resp.content).decode("ascii")
+        return f'{match.group(1)}data:{mime};base64,{data}{match.group(3)}'
+    return re.sub(r'(<img[^>]*\ssrc=")([^"]+)(")', replace, html)
 
-        # close an open list when the block type changes
-        list_tag = LIST_TAGS.get(btype)
-        if open_list and open_list != list_tag:
-            out += f"</{open_list}>"
-            open_list = None
-        if list_tag and not open_list:
-            out += f"<{list_tag}>"
-            open_list = list_tag
 
-        text = rich_text_to_html(data.get("rich_text", []))
-        children = blocks_to_html(get_blocks(block["id"])) if block.get("has_children") else ""
-
-        if btype in SIMPLE_TAGS:
-            tag = SIMPLE_TAGS[btype]
-            out += f"<{tag}>{text}{children}</{tag}>"
-        elif btype == "to_do":
-            box = "☑" if data.get("checked") else "☐"
-            out += f"<li>{box} {text}{children}</li>"
-        elif list_tag:
-            out += f"<li>{text}{children}</li>"
-        elif btype == "code":
-            out += f"<pre><code>{html.escape(''.join(rt['plain_text'] for rt in data['rich_text']))}</code></pre>"
-        elif btype == "divider":
-            out += "<hr>"
-        else:
-            # unsupported block types: fall back to their text so nothing silently disappears
-            out += f"<p>{text}</p>{children}" if text or children else ""
-            print(f"warning: unsupported notion block type '{btype}'", file=sys.stderr)
-    if open_list:
-        out += f"</{open_list}>"
-    return out
+def markdown_to_html(md):
+    md = re.sub(r"<unknown[^>]*/>", "", md)  # drop unsupported-block placeholders
+    html = markdown.markdown(separate_blocks(md), extensions = ["fenced_code", "sane_lists", "tables"])
+    # open links in a new tab, matching the rest of the dashboard
+    html = html.replace("<a href=", '<a target="_blank" rel="noopener noreferrer" href=')
+    return inline_notion_images(html)
 
 
 # flatten each page to {date, title, content}
@@ -127,7 +116,7 @@ for page in results:
         "id": page["id"],
         "date": (props["Date"]["date"] or {}).get("start"),
         "title": "".join(rt["plain_text"] for rt in props["Title"]["title"]),
-        "content": blocks_to_html(get_blocks(page["id"])),
+        "content": markdown_to_html(get_page_markdown(page["id"])),
     })
 
 # export results
