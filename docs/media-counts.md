@@ -104,21 +104,34 @@ function deltaPeriodLabel() {
 }
 
 // rows: [{date, value}]; compares first vs last non-null value in the range
-function deltaText(rows, {decimals = 0, mode = DELTA_MODE} = {}) {
+function deltaStats(rows) {
   const valid = rows.filter(d => d.value != null).sort((a, b) => d3.ascending(a.date, b.date));
-  if (valid.length < 2) return "";
+  if (valid.length < 2) return null;
   const first = valid[0].value;
   const last = valid[valid.length - 1].value;
+  return {diff: last - first, pct: first ? ((last - first) / first) * 100 : null};
+}
+
+// label: include the period label (e.g. "over last 30d"); off for KPI cards whose title already says it
+function deltaText(rows, {decimals = 0, mode = DELTA_MODE, label = true} = {}) {
+  const stats = deltaStats(rows);
+  if (!stats) return "";
   const sign = (v) => v > 0 ? "+" : v < 0 ? "−" : "±";
+  const period = label ? ` ${deltaPeriodLabel()}` : "";
 
-  const diff = last - first;
-  const rawStr = `${sign(diff)}${Math.abs(diff).toLocaleString("en-US", {minimumFractionDigits: decimals, maximumFractionDigits: decimals})}`;
-  const pct = first ? ((last - first) / first) * 100 : null;
-  const pctStr = pct != null ? `${sign(pct)}${Math.round(Math.abs(pct))}%` : null;
+  const rawStr = `${sign(stats.diff)}${Math.abs(stats.diff).toLocaleString("en-US", {minimumFractionDigits: decimals, maximumFractionDigits: decimals})}`;
+  const pctStr = stats.pct != null ? `${sign(stats.pct)}${Math.round(Math.abs(stats.pct))}%` : null;
 
-  if (mode === "pct") return pctStr ? `${pctStr} ${deltaPeriodLabel()}` : "";
-  if (mode === "both" && pctStr) return `${rawStr} ${deltaPeriodLabel()} (${pctStr})`;
-  return `${rawStr} ${deltaPeriodLabel()}`;
+  if (mode === "pct") return pctStr ? `${pctStr}${period}` : "";
+  if (mode === "both" && pctStr) return `${rawStr}${period} (${pctStr})`;
+  return `${rawStr}${period}`;
+}
+
+// main-metric series for one service, skipping stale points
+function serviceSeries(serviceId) {
+  return data
+    .filter(d => d.service === serviceId && !d.stale)
+    .map(d => ({date: d.date, value: metricValue(d)}));
 }
 
 function subtitleEl() {
@@ -135,28 +148,49 @@ function subtitleEl() {
 const latestDate = d3.max(data, d => d.date);
 const latest = data.filter(d => +d.date === +latestDate);
 const totalCount = d3.sum(latest, d => d.count);
+
+// daily total across services, used for net change KPI and the total chart subtitle
+const overallSeries = Array.from(
+  d3.rollup(data, values => d3.sum(values, metricValue), d => +d.date),
+  ([dateMs, value]) => ({date: new Date(dateMs), value})
+);
+
+// service with the largest absolute % change over the range
+const fastest = d3.greatest(
+  visibleConfig
+    .map(config => ({config, series: serviceSeries(config.id), stats: deltaStats(serviceSeries(config.id))}))
+    .filter(d => d.stats?.pct != null),
+  d => Math.abs(d.stats.pct)
+);
 ```
 
 <div class="grid grid-cols-4">
+  <div class="card">
+    <h2>Latest Data</h2>
+    <span class="big">${d3.utcFormat("%b %-d, %Y")(latestDate)}</span>
+  </div>
   <div class="card">
     <h2>Total Items</h2>
     <span class="big">${totalCount.toLocaleString("en-US")}</span>
   </div>
   <div class="card">
-    <h2>Services Tracked</h2>
-    <span class="big">${visibleConfig.length}</span>
+    <h2>Net Change (${deltaPeriodLabel()})</h2>
+    <span class="big">${deltaText(overallSeries, {label: false}) || "—"}</span>
   </div>
   <div class="card">
-    <h2>Days Tracked</h2>
-    <span class="big">${new Set(data.map(d => +d.date)).size}</span>
-  </div>
-  <div class="card">
-    <h2>Latest Data</h2>
-    <span class="big">${d3.utcFormat("%b %-d, %Y")(latestDate)}</span>
+    <h2>Fastest Changing List</h2>
+    <span class="big">${fastest ? fastest.config.name : "—"}</span>
+    ${fastest ? html`<div class="muted">${deltaText(fastest.series)}</div>` : ""}
   </div>
 </div>
 
 <!-- Topline totals chart -->
+
+```js
+// UI state that should persist across date range changes (this cell has no dependencies, so it never re-runs)
+const toplineState = {mode: "overall"};
+const serviceMetricState = new Map(); // service id -> selected metric index
+```
 
 ```js
 // color scale using clean names for the total chart legends
@@ -260,40 +294,29 @@ function totalChartCard(data) {
   const title = document.createElement("h2");
   title.style.margin = "0";
   title.textContent = "Total counts over time";
-  const overall = Array.from(
-    d3.rollup(data, values => d3.sum(values, metricValue), d => +d.date),
-    ([dateMs, value]) => ({date: new Date(dateMs), value})
-  );
   const subtitle = subtitleEl();
-  subtitle.textContent = deltaText(overall);
+  subtitle.textContent = deltaText(overallSeries);
   const titleBlock = document.createElement("div");
   titleBlock.append(title, subtitle);
   header.append(titleBlock);
 
   const chartContainer = document.createElement("div");
-  let mode = "overall";
   let currentWidth = 0;
-  const toggle = document.createElement("button");
-  toggle.type = "button";
-  toggle.style.cssText = "font-size:0.75rem; padding:0.15rem 0.45rem; border:1px solid #ccc; border-radius:4px; background:var(--theme-background); color:var(--theme-foreground); cursor:pointer;";
-
-  function updateToggleLabel() {
-    toggle.textContent = mode === "overall" ? "Split?" : "Total?";
-  }
-  updateToggleLabel();
+  // mode lives in toplineState so it survives date range changes (which rebuild this card)
+  const toggle = Inputs.radio(new Map([["Total", "overall"], ["By service", "split"]]), {value: toplineState.mode});
+  toggle.style.cssText = "width:auto; margin:0; font-size:0.75rem;";
   header.append(toggle);
 
   function renderChart() {
     if (!currentWidth) return;
     chartContainer.innerHTML = "";
-    chartContainer.append(totalChart(data, {width: currentWidth, mode}));
+    chartContainer.append(totalChart(data, {width: currentWidth, mode: toplineState.mode}));
   }
 
-  toggle.onclick = () => {
-    mode = mode === "overall" ? "split" : "overall";
-    updateToggleLabel();
+  toggle.addEventListener("input", () => {
+    toplineState.mode = toggle.value;
     renderChart();
-  };
+  });
 
   card.append(header);
   card.append(chartContainer);
@@ -372,7 +395,7 @@ function percentChartCard(data) {
 
 ```js
 // Determine y-axis domain: include zero if the data range is large relative to
-// the minimum value (min - 2 * range <= 0), otherwise pad around min/max by 10%
+// the minimum value (min - 3 * range <= 0), otherwise pad around min/max by 50%
 // of the range to better reveal variation in high-baseline series.
 function yDomain(serviceData, metric) {
   const values = serviceData.filter(d => !d.stale).map(d => d[metric]).filter(v => v != null);
@@ -446,7 +469,8 @@ function serviceCard(config) {
   ];
   const hasMultiple = allMetrics.length > 1;
 
-  let selectedIdx = 0;
+  // selected metric lives in serviceMetricState so it survives date range changes
+  let selectedIdx = serviceMetricState.get(config.id) ?? 0;
 
   const chartContainer = document.createElement("div");
   const card = document.createElement("div");
@@ -479,7 +503,7 @@ function serviceCard(config) {
 
   if (hasMultiple) {
     const select = document.createElement("select");
-    select.style.cssText = "font-size:0.75rem; padding:0.1rem 0.3rem; border:1px solid #ccc; border-radius:4px; background:var(--theme-background); color:var(--theme-foreground);";
+    select.style.cssText = "font-size:0.75rem; padding:0.1rem 0.3rem; border:1px solid var(--theme-foreground-faint); border-radius:4px; background:var(--theme-background); color:var(--theme-foreground);";
     for (let i = 0; i < allMetrics.length; i++) {
       const opt = document.createElement("option");
       opt.value = i;
@@ -489,6 +513,7 @@ function serviceCard(config) {
     }
     select.onchange = () => {
       selectedIdx = +select.value;
+      serviceMetricState.set(config.id, selectedIdx);
       updateTitle();
       const width = chartContainer.clientWidth;
       chartContainer.innerHTML = "";
