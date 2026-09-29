@@ -23,18 +23,18 @@ const sources = json.sources;
 // service display config (optional `url` links the service name in parens in the card title)
 const serviceConfig = [
   { id: "youtube", name: "Videos (YouTube)", color: "#4e79a7", mainMetric: "count", url: "https://www.youtube.com/playlist?list=WL", additionalMetrics: [
-    { metric: "total_length_min", label: "Total Duration (min)", decimals: 1 },
+    { metric: "total_length_min", label: "Total Duration (hrs)", unit: "min" },
   ]},
   { id: "letterboxd", name: "Movies (Letterboxd)", color: "#f28e2c", mainMetric: "count", url: "https://letterboxd.com/btanen/watchlist/", additionalMetrics: [] },
   { id: "miniflux", name: "Articles (Miniflux)", color: "#e15759", mainMetric: "count", url: "https://rss.ben-tanen.com/unread/", additionalMetrics: [] },
   { id: "feedly", name: "Articles (Feedly)", color: "#bab0ab", mainMetric: "count", additionalMetrics: [] },
   { id: "goodreads", name: "Books (Goodreads)", color: "#76b7b2", mainMetric: "count", url: "https://www.goodreads.com/review/list/171721734?shelf=to-read", additionalMetrics: [] },
   { id: "spotify", name: "Podcasts (Spotify)", color: "#59a14f", mainMetric: "count", url: "https://open.spotify.com/collection/your-episodes", additionalMetrics: [
-    { metric: "total_duration_hrs", label: "Total Duration (hrs)", decimals: 2 },
-    { metric: "remaining_duration_hrs", label: "Remaining Duration (hrs)", decimals: 2 },
+    { metric: "total_duration_hrs", label: "Total Duration (hrs)", unit: "hrs" },
+    { metric: "remaining_duration_hrs", label: "Remaining Duration (hrs)", unit: "hrs" },
   ]},
   { id: "sequel_shows", name: "Shows (Sequel)", color: "#edc949", mainMetric: "count", additionalMetrics: [
-    { metric: "to_watch_runtime_hrs", label: "Remaining Duration (hrs)", decimals: 2 },
+    { metric: "to_watch_runtime_hrs", label: "Remaining Duration (hrs)", unit: "hrs" },
     { metric: "total_eps", label: "Episodes (Total)", decimals: 0 },
     { metric: "count_want_to_watch", label: "Count (Want to Watch)", decimals: 0 },
     { metric: "total_eps_wtw_shows", label: "Episodes (Want to Watch)", decimals: 0 },
@@ -42,7 +42,7 @@ const serviceConfig = [
   { id: "sequel_games", name: "Games (Sequel)", color: "#af7aa1", mainMetric: "count", additionalMetrics: [] },
   { id: "musicbox", name: "Music (MusicBox)", color: "#ff9da7", mainMetric: "count", additionalMetrics: [
     { metric: "count_new", label: "Count (New)", decimals: 0 },
-    { metric: "total_duration_min", label: "Total Duration (min)", decimals: 1 }
+    { metric: "total_duration_min", label: "Total Duration (hrs)", unit: "min" }
   ]},
   { id: "raindrop", name: "Links (Raindrop)", color: "#9c755f", mainMetric: "count", url: "https://app.raindrop.io/my/0", additionalMetrics: [] },
 ];
@@ -53,6 +53,35 @@ const serviceMainMetric = Object.fromEntries(serviceConfig.map(d => [d.id, d.mai
 
 function metricValue(d) {
   return d[serviceMainMetric[d.service] || "count"] ?? 0;
+}
+
+// duration metrics (`unit: "min" | "hrs"`) are displayed in hours: decimal hours on
+// axes, "12h 28m" in titles/tooltips; other metrics use `decimals`
+function toDisplayValue(value, metricInfo) {
+  if (value == null) return value;
+  return metricInfo.unit === "min" ? value / 60 : value;
+}
+
+// "28m" / "12h 28m", switching to "57d 2h 24m" at 100+ hours
+function formatDuration(hours) {
+  const totalMin = Math.round(hours * 60);
+  const m = totalMin % 60;
+  const totalH = Math.floor(totalMin / 60);
+  if (totalH >= 100) return `${Math.floor(totalH / 24).toLocaleString("en-US")}d ${totalH % 24}h ${m}m`;
+  return totalH ? `${totalH}h ${m}m` : `${m}m`;
+}
+
+function formatMetric(value, metricInfo) {
+  if (value == null) return "—";
+  if (metricInfo.unit) return formatDuration(value);
+  const decimals = metricInfo.decimals ?? 0;
+  return value.toLocaleString("en-US", {minimumFractionDigits: decimals, maximumFractionDigits: decimals});
+}
+
+// copy of rows with the metric converted to its display value (hours for durations)
+function displayRows(rows, metricInfo) {
+  if (!metricInfo.unit) return rows;
+  return rows.map(d => ({...d, [metricInfo.metric]: toDisplayValue(d[metricInfo.metric], metricInfo)}));
 }
 ```
 
@@ -113,13 +142,14 @@ function deltaStats(rows) {
 }
 
 // label: include the period label (e.g. "over last 30d"); off for KPI cards whose title already says it
-function deltaText(rows, {decimals = 0, mode = DELTA_MODE, label = true} = {}) {
+function deltaText(rows, {decimals = 0, format, mode = DELTA_MODE, label = true} = {}) {
   const stats = deltaStats(rows);
   if (!stats) return "";
   const sign = (v) => v > 0 ? "+" : v < 0 ? "−" : "±";
   const period = label ? ` ${deltaPeriodLabel()}` : "";
 
-  const rawStr = `${sign(stats.diff)}${Math.abs(stats.diff).toLocaleString("en-US", {minimumFractionDigits: decimals, maximumFractionDigits: decimals})}`;
+  const absDiff = Math.abs(stats.diff);
+  const rawStr = `${sign(stats.diff)}${format ? format(absDiff) : absDiff.toLocaleString("en-US", {minimumFractionDigits: decimals, maximumFractionDigits: decimals})}`;
   const pctStr = stats.pct != null ? `${sign(stats.pct)}${Math.round(Math.abs(stats.pct))}%` : null;
 
   if (mode === "pct") return pctStr ? `${pctStr}${period}` : "";
@@ -408,10 +438,10 @@ function yDomain(serviceData, metric) {
   return [min - pad, max + pad];
 }
 
-function serviceChart(serviceData, config, metricInfo, {width} = {}) {
+function serviceChart(rawServiceData, config, metricInfo, {width} = {}) {
+  const serviceData = displayRows(rawServiceData, metricInfo);
   const metric = metricInfo.metric;
   const yLabel = metricInfo.label;
-  const decimals = metricInfo.decimals ?? 2;
   const yDom = yDomain(serviceData, metric);
 
   return Plot.plot({
@@ -441,7 +471,7 @@ function serviceChart(serviceData, config, metricInfo, {width} = {}) {
         fill: color.apply(config.id),
         r: 3,
         tip: true,
-        title: (d) => `${config.name}\n${d3.utcFormat("%b %-d, %Y")(d.date)}: ${d[metric]?.toLocaleString("en-US", {minimumFractionDigits: decimals, maximumFractionDigits: decimals})}`
+        title: (d) => `${config.name}\n${d3.utcFormat("%b %-d, %Y")(d.date)}: ${formatMetric(d[metric], metricInfo)}`
       }),
       ...(yDom ? [] : [Plot.ruleY([0])])
     ]
@@ -489,14 +519,12 @@ function serviceCard(config) {
   function updateTitle() {
     const m = allMetrics[selectedIdx];
     const latestRow = d3.greatest(serviceData, d => d.date);
-    const latestVal = latestRow
-      ? latestRow[m.metric]?.toLocaleString("en-US", {minimumFractionDigits: m.decimals, maximumFractionDigits: m.decimals})
-      : "—";
+    const latestVal = latestRow ? formatMetric(toDisplayValue(latestRow[m.metric], m), m) : "—";
     const staleMarker = latestRow && (latestRow.stale || +latestRow.date < +latestDate) ? "*" : "";
     title.replaceChildren(serviceNameEl(config), `: ${latestVal}${staleMarker}`);
     subtitle.textContent = deltaText(
-      serviceData.filter(d => !d.stale).map(d => ({date: d.date, value: d[m.metric]})),
-      {decimals: m.decimals}
+      serviceData.filter(d => !d.stale).map(d => ({date: d.date, value: toDisplayValue(d[m.metric], m)})),
+      {decimals: m.decimals ?? 0, format: m.unit ? formatDuration : undefined}
     );
   }
   updateTitle();
