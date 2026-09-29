@@ -196,19 +196,19 @@ const fastest = d3.greatest(
 
 <div class="grid grid-cols-4">
   <div class="card">
-    <h2>Latest Data</h2>
+    <h2>Latest date</h2>
     <span class="big">${d3.utcFormat("%b %-d, %Y")(latestDate)}</span>
   </div>
   <div class="card">
-    <h2>Total Items</h2>
+    <h2>Total items</h2>
     <span class="big">${totalCount.toLocaleString("en-US")}</span>
   </div>
   <div class="card">
-    <h2>Net Change (${deltaPeriodLabel()})</h2>
+    <h2>Net change ${deltaPeriodLabel()}</h2>
     <span class="big">${deltaText(overallSeries, {label: false}) || "—"}</span>
   </div>
   <div class="card">
-    <h2>Fastest Changing List</h2>
+    <h2>Most changed list</h2>
     <span class="big">${fastest ? fastest.config.name : "—"}</span>
     ${fastest ? html`<div class="muted">${deltaText(fastest.series)}</div>` : ""}
   </div>
@@ -385,7 +385,7 @@ function changeChart(data, {width} = {}) {
   return Plot.plot({
     width,
     // taller than 350 to fill the card, which stretches to match the total chart beside it
-    height: 400,
+    height: 380,
     marginLeft: 115,
     marginRight: 10,
     x: {grid: true, label: "Net change", tickFormat: fmtChange, domain: [Math.min(0, minDiff) - pad, Math.max(0, maxDiff) + pad]},
@@ -406,9 +406,13 @@ function changeChartCard(data) {
   card.className = "card";
 
   const title = document.createElement("h2");
-  title.style.margin = "0 0 0.5rem 0";
-  title.textContent = `Net change by list (${deltaPeriodLabel()})`;
-  card.append(title);
+  title.style.margin = "0";
+  title.textContent = "Net change by list";
+  const period = deltaPeriodLabel();
+  const subtitle = subtitleEl();
+  subtitle.style.marginBottom = "0.5rem";
+  subtitle.textContent = period[0].toUpperCase() + period.slice(1);
+  card.append(title, subtitle);
 
   card.append(resize((width) => changeChart(data, {width})));
   return card;
