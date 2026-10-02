@@ -4,6 +4,14 @@ title: Media Counts
 toc: false
 ---
 
+<script>
+  // start with the sidebar closed on this page unless the user has explicitly toggled it this session
+  if (sessionStorage.getItem("observablehq-sidebar") == null) {
+    const toggle = document.querySelector("#observablehq-sidebar-toggle");
+    if (toggle) toggle.indeterminate = false, toggle.checked = false;
+  }
+</script>
+
 # Media Counts
 
 This is a page I use to help monitor my plethora of "to read", "to watch", "to *consume*" lists and try to keep up with it all! More items is not necessarily a bad thing (nothing wrong with watching more films!), but I generally try to keep these lists "manageable within reason".
@@ -22,29 +30,29 @@ const sources = json.sources;
 ```js
 // service display config (optional `url` links the service name in parens in the card title)
 const serviceConfig = [
-  { id: "youtube", name: "Videos (YouTube)", color: "#4e79a7", mainMetric: "count", url: "https://www.youtube.com/playlist?list=WL", additionalMetrics: [
+  { id: "youtube", name: "Videos (YouTube)", color: "#b52d2d", mainMetric: "count", url: "https://www.youtube.com/playlist?list=WL", additionalMetrics: [
     { metric: "total_length_min", label: "Total Duration (hrs)", unit: "min" },
   ]},
-  { id: "letterboxd", name: "Movies (Letterboxd)", color: "#f28e2c", mainMetric: "count", url: "https://letterboxd.com/btanen/watchlist/", additionalMetrics: [] },
-  { id: "miniflux", name: "Articles (Miniflux)", color: "#e15759", mainMetric: "count", url: "https://rss.ben-tanen.com/unread/", additionalMetrics: [] },
+  { id: "letterboxd", name: "Movies (Letterboxd)", color: "#e36901", mainMetric: "count", url: "https://letterboxd.com/btanen/watchlist/", additionalMetrics: [] },
+  { id: "miniflux", name: "Articles (Miniflux)", color: "#02a89d", mainMetric: "count", url: "https://rss.ben-tanen.com/unread/", additionalMetrics: [] },
   { id: "feedly", name: "Articles (Feedly)", color: "#bab0ab", mainMetric: "count", additionalMetrics: [] },
-  { id: "goodreads", name: "Books (Goodreads)", color: "#76b7b2", mainMetric: "count", url: "https://www.goodreads.com/review/list/171721734?shelf=to-read", additionalMetrics: [] },
-  { id: "spotify", name: "Podcasts (Spotify)", color: "#59a14f", mainMetric: "count", url: "https://open.spotify.com/collection/your-episodes", additionalMetrics: [
+  { id: "goodreads", name: "Books (Goodreads)", color: "#9c601a", mainMetric: "count", url: "https://www.goodreads.com/review/list/171721734?shelf=to-read", additionalMetrics: [] },
+  { id: "spotify", name: "Podcasts (Spotify)", color: "#48aa48", mainMetric: "count", url: "https://open.spotify.com/collection/your-episodes", additionalMetrics: [
     { metric: "total_duration_hrs", label: "Total Duration (hrs)", unit: "hrs" },
     { metric: "remaining_duration_hrs", label: "Remaining Duration (hrs)", unit: "hrs" },
   ]},
-  { id: "sequel_shows", name: "Shows (Sequel)", color: "#edc949", mainMetric: "count", additionalMetrics: [
+  { id: "sequel_shows", name: "Shows (Sequel)", color: "#cd3c86", mainMetric: "count", additionalMetrics: [
     { metric: "to_watch_runtime_hrs", label: "Remaining Duration (hrs)", unit: "hrs" },
     { metric: "total_eps", label: "Episodes (Total)", decimals: 0 },
     { metric: "count_want_to_watch", label: "Count (Want to Watch)", decimals: 0 },
     { metric: "total_eps_wtw_shows", label: "Episodes (Want to Watch)", decimals: 0 },
   ]},
-  { id: "sequel_games", name: "Games (Sequel)", color: "#af7aa1", mainMetric: "count", additionalMetrics: [] },
-  { id: "musicbox", name: "Music (MusicBox)", color: "#ff9da7", mainMetric: "count", additionalMetrics: [
+  { id: "sequel_games", name: "Games (Sequel)", color: "#a79545", mainMetric: "count", additionalMetrics: [] },
+  { id: "musicbox", name: "Music (MusicBox)", color: "#8349c2", mainMetric: "count", additionalMetrics: [
     { metric: "count_new", label: "Count (New)", decimals: 0 },
     { metric: "total_duration_min", label: "Total Duration (hrs)", unit: "min" }
   ]},
-  { id: "raindrop", name: "Links (Raindrop)", color: "#9c755f", mainMetric: "count", url: "https://app.raindrop.io/my/0", additionalMetrics: [] },
+  { id: "raindrop", name: "Links (Raindrop)", color: "#4e92d1", mainMetric: "count", url: "https://app.raindrop.io/my/0", additionalMetrics: [] },
 ];
 
 const serviceIds = serviceConfig.map(d => d.id);
@@ -259,20 +267,20 @@ function totalChart(data, {width, mode = "overall"} = {}) {
         Plot.areaY(overall, {
           x: "date",
           y: "total",
-          fill: d3.schemeTableau10[0],
+          fill: "currentColor",
           fillOpacity: 0.25
         }),
         Plot.lineY(overall, {
           x: "date",
           y: "total",
-          stroke: d3.schemeTableau10[0],
+          stroke: "currentColor",
           strokeWidth: 2
         }),
         Plot.dot(overall, {
           x: "date",
           y: "total",
           r: 3,
-          fill: d3.schemeTableau10[0],
+          fill: "currentColor",
           tip: true,
           title: (d) => `${d3.utcFormat("%b %-d, %Y")(d.date)}: ${d.total.toLocaleString("en-US")}`
         }),
@@ -437,17 +445,27 @@ function yDomain(serviceData, metric) {
   return [min - pad, max + pad];
 }
 
+// whole-unit metrics (counts) get integer-only ticks so narrow ranges don't show
+// 21.5 games; duration metrics (`unit`) keep Plot's default decimal ticks
+function integerTicks(serviceData, metric, yDom) {
+  const values = serviceData.filter(d => !d.stale).map(d => d[metric]).filter(v => v != null);
+  if (!values.length) return undefined;
+  const [lo, hi] = yDom ?? [Math.min(0, d3.min(values)), Math.max(0, d3.max(values))];
+  return d3.ticks(lo, hi, 5).filter(Number.isInteger);
+}
+
 function serviceChart(rawServiceData, config, metricInfo, {width} = {}) {
   const serviceData = displayRows(rawServiceData, metricInfo);
   const metric = metricInfo.metric;
   const yLabel = metricInfo.label;
   const yDom = yDomain(serviceData, metric);
+  const yTicks = metricInfo.unit ? undefined : integerTicks(serviceData, metric, yDom);
 
   return Plot.plot({
     width,
     ariaLabel: `${config.name}: ${yLabel} over time`,
     height: 200,
-    y: {grid: true, label: yLabel, ...(yDom ? {domain: yDom} : {})},
+    y: {grid: true, label: yLabel, ...(yDom ? {domain: yDom} : {}), ...(yTicks ? {ticks: yTicks, tickFormat: ",d"} : {})},
     x: {type: "utc", label: null, domain: xDomain},
     marks: [
       // faded line connecting fresh points directly (bridges across stale gaps)

@@ -4,6 +4,14 @@ theme: dashboard
 toc: false
 ---
 
+<script>
+  // start with the sidebar closed on this page unless the user has explicitly toggled it this session
+  if (sessionStorage.getItem("observablehq-sidebar") == null) {
+    const toggle = document.querySelector("#observablehq-sidebar-toggle");
+    if (toggle) toggle.indeterminate = false, toggle.checked = false;
+  }
+</script>
+
 <style>
 .collections-app {
   min-height: 400px;
