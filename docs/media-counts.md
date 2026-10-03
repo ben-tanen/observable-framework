@@ -41,11 +41,15 @@ const serviceConfig = [
     { metric: "total_duration_hrs", label: "Total Duration (hrs)", unit: "hrs" },
     { metric: "remaining_duration_hrs", label: "Remaining Duration (hrs)", unit: "hrs" },
   ]},
-  { id: "sequel_shows", name: "Shows (Sequel)", color: "#cd3c86", mainMetric: "count", additionalMetrics: [
-    { metric: "to_watch_runtime_hrs", label: "Remaining Duration (hrs)", unit: "hrs" },
-    { metric: "total_eps", label: "Episodes (Total)", decimals: 0 },
+  { id: "sequel_shows", name: "Shows (Sequel)", color: "#cd3c86", mainMetric: "count_watching", mainLabel: "Count (Watching)", additionalMetrics: [
     { metric: "count_want_to_watch", label: "Count (Want to Watch)", decimals: 0 },
-    { metric: "total_eps_wtw_shows", label: "Episodes (Want to Watch)", decimals: 0 },
+    { metric: "count_total", label: "Count (Total)", decimals: 0 },
+    { metric: "runtime_hrs_watching", label: "Remaining Duration (Watching, hrs)", unit: "hrs" },
+    { metric: "runtime_hrs_want_to_watch", label: "Remaining Duration (Want to Watch, hrs)", unit: "hrs" },
+    { metric: "runtime_hrs_total", label: "Remaining Duration (Total, hrs)", unit: "hrs" },
+    { metric: "episodes_watching", label: "Episodes (Watching)", decimals: 0 },
+    { metric: "episodes_want_to_watch", label: "Episodes (Want to Watch)", decimals: 0 },
+    { metric: "episodes_total", label: "Episodes (Total)", decimals: 0 }
   ]},
   { id: "sequel_games", name: "Games (Sequel)", color: "#a79545", mainMetric: "count", additionalMetrics: [] },
   { id: "musicbox", name: "Music (MusicBox)", color: "#8349c2", mainMetric: "count", additionalMetrics: [
@@ -102,7 +106,7 @@ const allData = raw
 
 ```js
 const dateRange = view(Inputs.radio(
-  new Map([["7d", 7], ["14d", 14], ["30d", 30], ["60d", 60], ["90d", 90], ["All", null]]),
+  new Map([["7d", 7], ["14d", 14], ["30d", 30], ["60d", 60], ["90d", 90]]),
   {value: 30, label: "Date range"}
 ));
 ```
@@ -510,7 +514,7 @@ function serviceCard(config) {
   const serviceData = data.filter(d => d.service === config.id);
 
   // build full list of metric options: main + additional
-  const mainLabel = config.mainMetric === "count" ? "Count" : config.mainMetric;
+  const mainLabel = config.mainLabel ?? (config.mainMetric === "count" ? "Count" : config.mainMetric);
   const allMetrics = [
     {metric: config.mainMetric, label: mainLabel, decimals: 0},
     ...config.additionalMetrics
