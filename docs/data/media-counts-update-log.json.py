@@ -55,6 +55,7 @@ def get_page_markdown(page_id):
 
 
 LIST_RE = re.compile(r"^\s*([-*+]|\d+\.)\s")
+BQUOTE_RE = re.compile(r"^\s*>")
 
 def list_kind(line):
     m = LIST_RE.match(line)
@@ -79,6 +80,12 @@ def separate_blocks(md):
         # nested children stay attached; a bullet -> numbered switch starts a new list
         if is_list and next_is_list and (nxt.startswith((" ", "\t")) or list_kind(line) == list_kind(nxt)):
             continue
+        # notion exports a quote's nested child blocks as indented text; unlike lists,
+        # indentation isn't meaningful inside a blockquote (it reads as a code block), so
+        # dedent it and let it attach as a lazy-continuation line of the quote instead
+        if BQUOTE_RE.match(line) and nxt.startswith((" ", "\t")):
+            lines[i + 1] = nxt.lstrip()
+            continue
         out.append("")
     return "\n".join(out)
 
@@ -102,7 +109,12 @@ def inline_notion_images(html):
 
 def markdown_to_html(md):
     md = re.sub(r"<unknown[^>]*/>", "", md)  # drop unsupported-block placeholders
-    html = markdown.markdown(separate_blocks(md), extensions = ["fenced_code", "sane_lists", "tables"])
+    md_converter = markdown.Markdown(extensions = ["fenced_code", "sane_lists", "tables"])
+    # notion's markdown export backslash-escapes any ASCII punctuation (per CommonMark), but
+    # python-markdown only recognizes a narrower set; anything outside it (e.g. "\$") was
+    # passing through with the backslash still attached
+    md_converter.ESCAPED_CHARS += [c for c in "\"$%&',/:;<=?@^~" if c not in md_converter.ESCAPED_CHARS]
+    html = md_converter.convert(separate_blocks(md))
     # open links in a new tab, matching the rest of the dashboard
     html = html.replace("<a href=", '<a target="_blank" rel="noopener noreferrer" href=')
     return inline_notion_images(html)
