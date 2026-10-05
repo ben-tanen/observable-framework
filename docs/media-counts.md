@@ -34,7 +34,7 @@ const serviceConfig = [
     { metric: "total_length_min", label: "Total Duration (hrs)", unit: "min" },
   ]},
   { id: "letterboxd", name: "Movies (Letterboxd)", color: "#e36901", mainMetric: "count", url: "https://letterboxd.com/btanen/watchlist/", additionalMetrics: [] },
-  { id: "miniflux", name: "Articles (Miniflux)", color: "#02a89d", mainMetric: "count", url: "https://rss.ben-tanen.com/unread/", additionalMetrics: [] },
+  { id: "miniflux", name: "Articles (Miniflux)", color: "#02a89d", mainMetric: "count", url: "https://rss.ben-tanen.com/", additionalMetrics: [] },
   { id: "feedly", name: "Articles (Feedly)", color: "#bab0ab", mainMetric: "count", additionalMetrics: [] },
   { id: "goodreads", name: "Books (Goodreads)", color: "#9c601a", mainMetric: "count", url: "https://www.goodreads.com/review/list/171721734?shelf=to-read", additionalMetrics: [] },
   { id: "spotify", name: "Podcasts (Spotify)", color: "#48aa48", mainMetric: "count", url: "https://open.spotify.com/collection/your-episodes", additionalMetrics: [
