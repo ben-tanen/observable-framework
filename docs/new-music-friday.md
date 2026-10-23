@@ -164,17 +164,26 @@ function groupedView(rows) {
       .map(([id, rs]) => artistCard(id, rs))}</div>`)}`;
 }
 
+// position of each artist in the grouped-view order, so the Tier column sorts the same way
+const artistOrder = new Map(d3.sort(Object.keys(artists), (a, b) => compareArtists(artists[a], artists[b])).map((id, i) => [id, i]));
+
 function tableView(rows) {
-  return Inputs.table(rows.map((r) => ({...r, artist_names: r.artists, pills: releasePills(r)})), {
-    columns: ["artwork_thumb_url", "release_date", "album_name", "album_type", "artist_names", "pills"],
-    header: {artwork_thumb_url: "", release_date: "Released", album_name: "Release", album_type: "Type", artist_names: "Artist", pills: "Tier"},
+  return Inputs.table(rows.map((r) => ({
+    ...r,
+    artist_names: r.artists,
+    pills: releasePills(r),
+    tier: d3.min(r.matched_artist_ids, (id) => artistOrder.get(id))
+  })), {
+    columns: ["artwork_thumb_url", "release_date", "album_name", "album_type", "artist_names", "tier"],
+    header: {artwork_thumb_url: "", release_date: "Released", album_name: "Release", album_type: "Type", artist_names: "Artist", tier: "Tier"},
     format: {
       artwork_thumb_url: (url) => html`<img src=${url} width=32 height=32 class="thumb" alt="">`,
       album_name: (name, i, data) => html`<a href=${data[i].album_url} target="_blank">${name}</a>`,
       album_type: (t) => TYPE_LABEL[t] ?? t,
       // matched artists in bold, other credits plain
       artist_names: (list, i, data) => html`${list.map((a, j) => html`${j ? ", " : ""}${data[i].matched_artist_ids.includes(a.id) ? html`<b>${a.name}</b>` : a.name}`)}`,
-      pills: (p) => pillRow(p)
+      // sorts on the numeric tier, displays the pills
+      tier: (t, i, data) => pillRow(data[i].pills)
     },
     sort: "release_date",
     reverse: true,
@@ -209,7 +218,7 @@ display(viewMode === "Grouped by artist" ? groupedView(filtered) : tableView(fil
   .pill-toggle .pill { cursor: pointer; font-size: 12px; padding: 2px 10px; }
 
   .week-heading { margin-top: 1.5rem; }
-  .release-card { display: flex; gap: 1rem; align-items: flex-start; margin: 0; }
+  .release-card { display: flex; gap: 1rem; align-items: flex-start; align-self: start; margin: 0; }
   .release-card .artwork { width: 72px; height: 72px; border-radius: 4px; flex: none; object-fit: cover; background: var(--theme-background-alt); }
   .release-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .artist-line { font: 16px var(--sans-serif); color: var(--theme-foreground-muted); margin-top: 2px; }

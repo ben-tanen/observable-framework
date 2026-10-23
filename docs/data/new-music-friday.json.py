@@ -2,7 +2,6 @@
 import json, os, sys, time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-import pandas as pd
 import spotipy
 from spotipy.cache_handler import MemoryCacheHandler
 import requests
@@ -67,7 +66,8 @@ def call_spotify(fn, *args, **kwargs):
 
 ###
 
-def get_top_artists(artists = {}, time_ranges = ["short_term", "medium_term", "long_term"], limit = 50):
+def get_top_artists(artists = None, time_ranges = ["short_term", "medium_term", "long_term"], limit = 50):
+	artists = {} if artists is None else artists
 	for time_range in time_ranges:
 		offset = 0
 		while True:
@@ -88,7 +88,8 @@ def get_top_artists(artists = {}, time_ranges = ["short_term", "medium_term", "l
 				offset += limit
 	return artists
 
-def get_followed_artists(artists = {}, limit = 50):
+def get_followed_artists(artists = None, limit = 50):
+	artists = {} if artists is None else artists
 	after = None
 	while True:
 		result = call_spotify(sp.current_user_followed_artists, limit = limit, after = after)
@@ -160,7 +161,9 @@ def get_artist_recent_albums_v1(artist_id, artist_name, date_since, album_types 
 				offset += limit
 		return albums
 
-def get_artist_recent_albums_v2(artist_id, artist_name, date_since, limit = 10, albums = {}, artists = {}):
+def get_artist_recent_albums_v2(artist_id, artist_name, date_since, limit = 10, albums = None, artists = None):
+	albums = {} if albums is None else albums
+	artists = {} if artists is None else artists
 	search_name = artist_name.replace('"', "")
 	offset = 0
 	total = None
@@ -179,14 +182,16 @@ def get_artist_recent_albums_v2(artist_id, artist_name, date_since, limit = 10, 
 			offset += limit
 	return albums
 
-def get_recent_albums(artists = {}, date_since = None, query = "following or long_term <= 200 or medium_term <= 100 or short_term <= 100", limit = None):
+def should_check(artist):
+	# followed, or top 200 long-term / top 100 medium-term / top 100 short-term
+	rank = lambda term: artist.get(term) or float("inf")
+	return bool(artist.get("following")) or rank("long_term") <= 200 or rank("medium_term") <= 100 or rank("short_term") <= 100
+
+def get_recent_albums(artists, date_since, limit = None):
 	albums = {}
-	artists_df = pd.DataFrame(artists.values()).set_index("id")
-	artists_df["following"] = artists_df["following"].eq(True)
-	artist_ids = artists_df.query(query).index
-	artist_ids = artist_ids[:limit] if (limit and isinstance(limit, int) and limit < artists_df.shape[0]) else artist_ids
+	artist_ids = [i for i, a in artists.items() if should_check(a)][:limit]
 	for i, artist_id in enumerate(artist_ids):
-		artist_name = artists_df.loc[artist_id, "name"]
+		artist_name = artists[artist_id]["name"]
 		try:
 			albums = get_artist_recent_albums_v2(artist_id, artist_name, date_since, albums = albums, artists = artists)
 		except QuotaExceeded as e:

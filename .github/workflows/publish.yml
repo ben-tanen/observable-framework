@@ -57,7 +57,7 @@ jobs:
         env:
           SECRET_KEYS: ${{ secrets.SECRET_KEYS }}
         run: |
-          echo $SECRET_KEYS > env/secrets.json
+          echo "$SECRET_KEYS" > env/secrets.json
 
       - name: Restore data loader cache
         uses: actions/cache@v4
