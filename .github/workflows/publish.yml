@@ -73,6 +73,7 @@ jobs:
           NMF_LOADERS: "new-music-friday.json"
         run: |
           CACHE=docs/.observablehq/cache
+          rm -f "$CACHE/data/toc.json" # cheap and derived from page files, so always rebuild
           case "$REFRESH" in
             all)          rm -rf "$CACHE" ;;
             media-counts) for f in $MEDIA_COUNTS_LOADERS; do rm -f "$CACHE/data/$f"; done ;;
