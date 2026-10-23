@@ -228,6 +228,15 @@ const fastest = d3.greatest(
 
 <!-- Topline totals chart -->
 
+<style>
+  .topline-card {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-rows: auto auto minmax(365px, 1fr);
+    min-height: 460px;
+  }
+</style>
+
 ```js
 // UI state that should persist across date range changes (this cell has no dependencies, so it never re-runs)
 const toplineState = {mode: "overall"};
@@ -244,16 +253,8 @@ const namedColor = Plot.scale({
   }
 });
 const serviceOrder = visibleConfig.map(d => d.name);
-const TOPLINE_BASE_HEIGHT = 365;
-const TOPLINE_LEGEND_SPACE = 38;
 
-function toplineHeight(mode) {
-  // In overall mode there is no in-chart legend, so reserve equivalent
-  // space to keep the x-axis baseline aligned with the % chart.
-  return mode === "overall" ? TOPLINE_BASE_HEIGHT + TOPLINE_LEGEND_SPACE : TOPLINE_BASE_HEIGHT;
-}
-
-function totalChart(data, {width, mode = "overall"} = {}) {
+function totalChart(data, {width, height, mode = "overall"} = {}) {
   const named = data.map(d => ({...d, name: serviceNames[d.service]}));
   const overall = Array.from(
     d3.rollup(data, values => d3.sum(values, metricValue), d => +d.date),
@@ -264,7 +265,7 @@ function totalChart(data, {width, mode = "overall"} = {}) {
     return Plot.plot({
       width,
       ariaLabel: "Total items across all lists over time",
-      height: toplineHeight(mode),
+      height,
       y: {grid: true, label: "Count"},
       x: {type: "utc", label: null, domain: xDomain},
       marks: [
@@ -296,10 +297,10 @@ function totalChart(data, {width, mode = "overall"} = {}) {
   return Plot.plot({
     width,
     ariaLabel: "Items over time, stacked by list",
-    height: toplineHeight(mode),
+    height,
     y: {grid: true, label: "Count"},
     x: {type: "utc", label: null, domain: xDomain},
-    color: {...namedColor, legend: true},
+    color: namedColor,
     marks: [
       Plot.areaY(named, Plot.stackY({
         x: "date",
@@ -331,17 +332,23 @@ function totalChart(data, {width, mode = "overall"} = {}) {
 
 function totalChartCard(data) {
   const card = document.createElement("div");
-  card.className = "card";
+  card.className = "card topline-card";
 
   const header = document.createElement("div");
-  header.style.cssText = "display:flex; justify-content:space-between; align-items:center; gap:0.5rem; margin-bottom:0.5rem;";
+  header.style.cssText = "display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:0.5rem; margin-bottom:0.5rem;";
   const title = document.createElement("h2");
   title.style.margin = "0";
   title.textContent = "Total counts over time";
   header.append(title);
 
-  const chartContainer = document.createElement("div");
+  // Keep the wrapping legend in normal flow so the chart fills what remains.
+  const legend = Plot.legend({color: namedColor});
+  function updateLegend() {
+    legend.style.display = toplineState.mode === "split" ? "" : "none";
+  }
+  updateLegend();
   let currentWidth = 0;
+  let currentHeight = 0;
   // mode lives in toplineState so it survives date range changes (which rebuild this card)
   const toggle = Inputs.radio(new Map([["Total", "overall"], ["By service", "split"]]), {value: toplineState.mode});
   toggle.setAttribute("aria-label", "Total chart view");
@@ -349,23 +356,29 @@ function totalChartCard(data) {
   header.append(toggle);
 
   function renderChart() {
-    if (!currentWidth) return;
-    chartContainer.innerHTML = "";
-    chartContainer.append(totalChart(data, {width: currentWidth, mode: toplineState.mode}));
+    if (!currentWidth || !currentHeight) return;
+    const chart = totalChart(data, {width: currentWidth, height: currentHeight, mode: toplineState.mode});
+    chart.style.position = "absolute";
+    return chart;
   }
+
+  const chartContainer = resize((width, height) => {
+    currentWidth = width;
+    currentHeight = height;
+    return renderChart();
+  });
+  chartContainer.style.height = "auto";
+  chartContainer.style.minWidth = "0";
+  chartContainer.style.gridRow = "3";
 
   toggle.addEventListener("input", () => {
     toplineState.mode = toggle.value;
-    renderChart();
+    updateLegend();
+    const chart = renderChart();
+    if (chart) chartContainer.replaceChildren(chart);
   });
 
-  card.append(header);
-  card.append(chartContainer);
-  card.append(resize((width) => {
-    currentWidth = width;
-    renderChart();
-    return html``;
-  }));
+  card.append(header, legend, chartContainer);
 
   return card;
 }
@@ -379,7 +392,7 @@ function totalChartCard(data) {
 ```js
 // net change by list: one bar per service for the selected range (last minus first
 // non-stale value, same as the card subtitles), growth right / shrinkage left, sorted
-function changeChart(data, {width} = {}) {
+function changeChart(data, {width, height} = {}) {
   const changes = visibleConfig
     .map(config => {
       const series = serviceSeries(config.id);
@@ -397,8 +410,7 @@ function changeChart(data, {width} = {}) {
     width,
     ariaLabel: `Net change in items by list ${deltaPeriodLabel()}`,
     ariaDescription: changes.map(d => `${d.name}: ${d.label}`).join("; "),
-    // taller than 350 to fill the card, which stretches to match the total chart beside it
-    height: 380,
+    height,
     marginLeft: 115,
     marginRight: 10,
     x: {grid: true, label: "Net change", tickFormat: fmtChange, domain: [Math.min(0, minDiff) - pad, Math.max(0, maxDiff) + pad]},
@@ -416,7 +428,7 @@ function changeChart(data, {width} = {}) {
 
 function changeChartCard(data) {
   const card = document.createElement("div");
-  card.className = "card";
+  card.className = "card topline-card";
 
   const title = document.createElement("h2");
   title.style.margin = "0";
@@ -427,12 +439,33 @@ function changeChartCard(data) {
   subtitle.textContent = period[0].toUpperCase() + period.slice(1);
   card.append(title, subtitle);
 
-  card.append(resize((width) => changeChart(data, {width})));
+  const chartContainer = resize((width, height) => changeChart(data, {width, height}));
+  chartContainer.style.height = "auto";
+  chartContainer.style.minWidth = "0";
+  card.append(chartContainer);
   return card;
 }
 ```
 
 <!-- Per-service detail charts -->
+
+<style>
+  .service-card {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-rows: auto auto minmax(200px, 1fr);
+    min-height: 274px;
+  }
+  .service-card-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.25rem 0.5rem;
+  }
+  .service-card-header h2 { min-width: 0; }
+  .service-card-header select { max-width: 100%; min-width: 0; }
+</style>
 
 ```js
 // Determine y-axis domain: include zero if the data range is large relative to
@@ -458,7 +491,7 @@ function integerTicks(serviceData, metric, yDom) {
   return d3.ticks(lo, hi, 5).filter(Number.isInteger);
 }
 
-function serviceChart(rawServiceData, config, metricInfo, {width} = {}) {
+function serviceChart(rawServiceData, config, metricInfo, {width, height} = {}) {
   const serviceData = displayRows(rawServiceData, metricInfo);
   const metric = metricInfo.metric;
   const yLabel = metricInfo.label;
@@ -468,7 +501,7 @@ function serviceChart(rawServiceData, config, metricInfo, {width} = {}) {
   return Plot.plot({
     width,
     ariaLabel: `${config.name}: ${yLabel} over time`,
-    height: 200,
+    height,
     y: {grid: true, label: yLabel, ...(yDom ? {domain: yDom} : {}), ...(yTicks ? {ticks: yTicks, tickFormat: ",d"} : {})},
     x: {type: "utc", label: null, domain: xDomain},
     marks: [
@@ -524,19 +557,33 @@ function serviceCard(config) {
   // selected metric lives in serviceMetricState so it survives date range changes
   let selectedIdx = serviceMetricState.get(config.id) ?? 0;
 
-  const chartContainer = document.createElement("div");
+  let currentWidth = 0;
+  let currentHeight = 0;
+  function renderChart() {
+    if (!currentWidth || !currentHeight) return;
+    const chart = serviceChart(serviceData, config, allMetrics[selectedIdx], {width: currentWidth, height: currentHeight});
+    chart.style.position = "absolute";
+    return chart;
+  }
+  const chartContainer = resize((width, height) => {
+    currentWidth = width;
+    currentHeight = height;
+    return renderChart();
+  });
+  // The grid supplies the chart's height independently of the rendered Plot.
+  chartContainer.style.height = "auto";
+  chartContainer.style.minWidth = "0";
   const card = document.createElement("div");
-  card.className = "card";
+  card.className = "card service-card";
 
   // header row: title on the left, dropdown on the right
   const header = document.createElement("div");
-  header.style.cssText = "display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.25rem;";
+  header.className = "service-card-header";
   const title = document.createElement("h2");
   title.style.margin = "0";
   const subtitle = subtitleEl();
-  const titleBlock = document.createElement("div");
-  titleBlock.append(title, subtitle);
-  header.append(titleBlock);
+  subtitle.style.marginBottom = "0.25rem";
+  header.append(title);
 
   function updateTitle() {
     const m = allMetrics[selectedIdx];
@@ -566,20 +613,13 @@ function serviceCard(config) {
       selectedIdx = +select.value;
       serviceMetricState.set(config.id, selectedIdx);
       updateTitle();
-      const width = chartContainer.clientWidth;
-      chartContainer.innerHTML = "";
-      chartContainer.append(serviceChart(serviceData, config, allMetrics[selectedIdx], {width}));
+      const chart = renderChart();
+      if (chart) chartContainer.replaceChildren(chart);
     };
     header.append(select);
   }
 
-  card.append(header);
-  card.append(chartContainer);
-  card.append(resize((width) => {
-    chartContainer.innerHTML = "";
-    chartContainer.append(serviceChart(serviceData, config, allMetrics[selectedIdx], {width}));
-    return html``;
-  }));
+  card.append(header, subtitle, chartContainer);
 
   return card;
 }
