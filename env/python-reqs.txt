@@ -1,4 +1,4 @@
-pandas==2.2.0
+pandas==2.2.3
 google-api-python-client==2.121.0
 gspread==6.0.2
 python-frontmatter==1.1.0
@@ -6,3 +6,4 @@ beautifulsoup4==4.12.3
 esprima==4.0.1
 requests==2.31.0
 markdown==3.7
+spotipy==2.26.0
