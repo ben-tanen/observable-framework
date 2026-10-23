@@ -1,22 +1,32 @@
 name: Publish
 on:
   workflow_dispatch:
+    inputs:
+      refresh:
+        description: "Which data loaders to refresh cache for"
+        type: choice
+        options: [all, media-counts, nmf]
+        default: all
+  schedule:
+    - cron: "0 13 * * 5" # Fridays 6am MST / 7am MDT
   push:
     branches: ["master"]
-  # build-only check on PRs (deploy job is skipped below)
   pull_request:
     branches: ["master"]
-  # schedule:
-  #   - cron: "0 */12 * * *"
 permissions:
   contents: write
 jobs:
   build:
-    concurrency: ci-${{ github.ref }} # Recommended if you intend to make multiple deployments in quick succession.
+    concurrency: ci-${{ github.ref }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore source mtimes
+        uses: chetan/git-restore-mtime-action@v2
 
       - name: Setup node
         uses: actions/setup-node@v4
@@ -48,6 +58,27 @@ jobs:
           SECRET_KEYS: ${{ secrets.SECRET_KEYS }}
         run: |
           echo $SECRET_KEYS > env/secrets.json
+
+      - name: Restore data loader cache
+        uses: actions/cache@v4
+        with:
+          path: docs/.observablehq/cache
+          key: framework-cache-${{ github.run_id }}
+          restore-keys: framework-cache-
+
+      - name: Invalidate data loader cache
+        env:
+          REFRESH: ${{ github.event_name == 'schedule' && 'all' || inputs.refresh || 'none' }}
+          MEDIA_COUNTS_LOADERS: "media-counts.json media-counts-update-log.json"
+          NMF_LOADERS: "new-music-friday.json"
+        run: |
+          CACHE=docs/.observablehq/cache
+          case "$REFRESH" in
+            all)          rm -rf "$CACHE" ;;
+            media-counts) for f in $MEDIA_COUNTS_LOADERS; do rm -f "$CACHE/data/$f"; done ;;
+            nmf)          for f in $NMF_LOADERS; do rm -f "$CACHE/data/$f"; done ;;
+          esac
+          echo "refresh=$REFRESH"
 
       - name: Build
         env:
