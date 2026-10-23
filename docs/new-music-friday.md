@@ -123,11 +123,16 @@ const TYPE_LABEL = {album: "Album", single: "Single", compilation: "Compilation"
 const releaseMeta = (r) =>
   `${TYPE_LABEL[r.album_type] ?? r.album_type} · ${r.total_tracks} track${r.total_tracks === 1 ? "" : "s"} · ${fmtDay(parseDate(r.release_date))}`;
 
-// artist sort within a week: more pills, then best rank (mirrors the loader's primary-artist rule)
-function artistPriority(artist) {
-  const pills = artistPills(artist).length;
-  const best = d3.min(CATEGORIES.filter((c) => c.rank), (c) => artist[c.rank]) ?? Infinity;
-  return [-pills, best];
+// artist sort within a week: following first, then more pills, then long/medium/short-term rank
+// (unranked last), then name
+const rankOrInf = (rank) => rank ?? Infinity;
+function compareArtists(a, b) {
+  return d3.descending(a.following, b.following)
+    || d3.descending(artistPills(a).length, artistPills(b).length)
+    || d3.ascending(rankOrInf(a.long_term), rankOrInf(b.long_term))
+    || d3.ascending(rankOrInf(a.medium_term), rankOrInf(b.medium_term))
+    || d3.ascending(rankOrInf(a.short_term), rankOrInf(b.short_term))
+    || a.name.localeCompare(b.name);
 }
 
 function artistCard(artistId, artistReleases) {
@@ -155,7 +160,7 @@ function groupedView(rows) {
   if (!weeks.length) return html`<p class="muted">No releases match the current filters.</p>`;
   return html`${weeks.map(([week, byArtist]) => html`
     <h2 class="week-heading">Week of ${fmtDay(parseDate(week))}</h2>
-    <div class="grid grid-cols-2">${d3.sort(byArtist, ([id]) => artistPriority(artists[id])[0], ([id]) => artistPriority(artists[id])[1])
+    <div class="grid grid-cols-2">${d3.sort(byArtist, ([a], [b]) => compareArtists(artists[a], artists[b]))
       .map(([id, rs]) => artistCard(id, rs))}</div>`)}`;
 }
 
