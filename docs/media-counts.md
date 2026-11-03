@@ -28,28 +28,27 @@ const sources = json.sources;
 ```
 
 ```js
-// service display config (optional `url` links the service name in parens in the card title)
+// service display config: one entry per card. `name` is derived as "Category (Service)";
+// optional `url` links the service in the card title; optional `predecessors` lists retired
+// services whose history is shown on this card (in gray) leading up to the switchover
 const serviceConfig = [
-  { id: "youtube", name: "Videos (YouTube)", color: "#b52d2d", mainMetric: "count", url: "https://www.youtube.com/playlist?list=WL", additionalMetrics: [
+  { id: "youtube", service: "YouTube", category: "Videos", color: "#b52d2d", mainMetric: "count", url: "https://www.youtube.com/playlist?list=WL", additionalMetrics: [
     { metric: "total_length_min", label: "Total Duration (hrs)", unit: "min" },
   ]},
-  { id: "letterboxd", name: "Movies (Letterboxd)", color: "#e36901", mainMetric: "count", url: "https://letterboxd.com/btanen/watchlist/", additionalMetrics: [] },
-  { id: "miniflux", name: "Articles (Miniflux)", color: "#02a89d", mainMetric: "count", url: "https://rss.ben-tanen.com/", additionalMetrics: [] },
-  { id: "feedly", name: "Articles (Feedly)", color: "#bab0ab", mainMetric: "count", additionalMetrics: [] },
-  { id: "hardcover", name: "Books (Hardcover)", color: "#9c601a", mainMetric: "count", url: "https://hardcover.app/@btanen/books/want-to-read", additionalMetrics: [
+  { id: "letterboxd", service: "Letterboxd", category: "Movies", color: "#e36901", mainMetric: "count", url: "https://letterboxd.com/btanen/watchlist/", additionalMetrics: [] },
+  { id: "miniflux", service: "Miniflux", category: "Articles", color: "#02a89d", mainMetric: "count", url: "https://rss.ben-tanen.com/", predecessors: [{ id: "feedly", service: "Feedly" }], additionalMetrics: [] },
+  { id: "hardcover", service: "Hardcover", category: "Books", color: "#9c601a", mainMetric: "count", url: "https://hardcover.app/@btanen/books/want-to-read", predecessors: [{ id: "goodreads", service: "Goodreads" }], additionalMetrics: [
     { metric: "count_want_to_read", label: "Count (Want to Read)", decimals: 0 },
     { metric: "count_reading", label: "Count (Reading)", decimals: 0 },
     { metric: "pages_want_to_read", label: "Pages (Want to Read)", decimals: 0 },
     { metric: "pages_reading", label: "Pages (Reading)", decimals: 0 },
     { metric: "pages_total", label: "Pages (Total)", decimals: 0 },
-    { metric: "count_missing_pages", label: "Books Missing Page Counts", decimals: 0 },
   ]},
-  { id: "goodreads", name: "Books (Goodreads)", color: "#8c7b6b", mainMetric: "count", additionalMetrics: [] },
-  { id: "spotify", name: "Podcasts (Spotify)", color: "#48aa48", mainMetric: "count", url: "https://open.spotify.com/collection/your-episodes", additionalMetrics: [
+  { id: "spotify", service: "Spotify", category: "Podcasts", color: "#48aa48", mainMetric: "count", url: "https://open.spotify.com/collection/your-episodes", additionalMetrics: [
     { metric: "total_duration_hrs", label: "Total Duration (hrs)", unit: "hrs" },
     { metric: "remaining_duration_hrs", label: "Remaining Duration (hrs)", unit: "hrs" },
   ]},
-  { id: "sequel_shows", name: "Shows (Sequel)", color: "#cd3c86", mainMetric: "count_watching", mainLabel: "Count (Watching)", additionalMetrics: [
+  { id: "sequel_shows", service: "Sequel", category: "Shows", color: "#cd3c86", mainMetric: "count_watching", mainLabel: "Count (Watching)", additionalMetrics: [
     { metric: "count_want_to_watch", label: "Count (Want to Watch)", decimals: 0 },
     { metric: "count_total", label: "Count (Total)", decimals: 0 },
     { metric: "runtime_hrs_watching", label: "Remaining Duration (Watching, hrs)", unit: "hrs" },
@@ -59,20 +58,30 @@ const serviceConfig = [
     { metric: "episodes_want_to_watch", label: "Episodes (Want to Watch)", decimals: 0 },
     { metric: "episodes_total", label: "Episodes (Total)", decimals: 0 }
   ]},
-  { id: "sequel_games", name: "Games (Sequel)", color: "#a79545", mainMetric: "count", additionalMetrics: [] },
-  { id: "musicbox", name: "Music (MusicBox)", color: "#8349c2", mainMetric: "count", additionalMetrics: [
+  { id: "sequel_games", service: "Sequel", category: "Games", color: "#a79545", mainMetric: "count", additionalMetrics: [] },
+  { id: "musicbox", service: "MusicBox", category: "Music", color: "#8349c2", mainMetric: "count", additionalMetrics: [
     { metric: "count_new", label: "Count (New)", decimals: 0 },
     { metric: "total_duration_min", label: "Total Duration (hrs)", unit: "min" }
   ]},
-  { id: "raindrop", name: "Links (Raindrop)", color: "#4e92d1", mainMetric: "count", url: "https://app.raindrop.io/my/0", additionalMetrics: [] },
+  { id: "raindrop", service: "Raindrop", category: "Links", color: "#4e92d1", mainMetric: "count", url: "https://app.raindrop.io/my/0", additionalMetrics: [] },
 ];
 
-const serviceIds = serviceConfig.map(d => d.id);
-const serviceNames = Object.fromEntries(serviceConfig.map(d => [d.id, d.name]));
+// retired services are drawn in this gray on their successor's card
+const PREDECESSOR_COLOR = "#9a9a9a";
+
+for (const c of serviceConfig) c.name = `${c.category} (${c.service})`;
+
+// series id -> card id (each card's own id, plus its predecessors' ids)
+const seriesToCard = Object.fromEntries(serviceConfig.flatMap(c =>
+  [[c.id, c.id], ...(c.predecessors ?? []).map(p => [p.id, c.id])]));
+// series id -> label used in tooltips, e.g. "Books (Goodreads)"
+const seriesLabels = Object.fromEntries(serviceConfig.flatMap(c =>
+  [[c.id, c.name], ...(c.predecessors ?? []).map(p => [p.id, `${c.category} (${p.service})`])]));
 const serviceMainMetric = Object.fromEntries(serviceConfig.map(d => [d.id, d.mainMetric]));
 
+// rows carry `card`, so predecessor rows use their successor card's main metric
 function metricValue(d) {
-  return d[serviceMainMetric[d.service] || "count"] ?? 0;
+  return d[serviceMainMetric[d.card] || "count"] ?? 0;
 }
 
 // duration metrics (`unit: "min" | "hrs"`) are displayed in hours: decimal hours on
@@ -106,10 +115,14 @@ function displayRows(rows, metricInfo) {
 ```
 
 ```js
-// parse dates and filter to configured services
-const allData = raw
-  .filter(d => serviceIds.includes(d.service))
-  .map(d => ({...d, date: d3.utcParse("%Y-%m-%d")(d.date), stale: !!d.stale}));
+// parse dates, filter to configured services (incl. predecessors), and tag each row with its card
+const parsed = raw
+  .filter(d => d.service in seriesToCard)
+  .map(d => ({...d, card: seriesToCard[d.service], date: d3.utcParse("%Y-%m-%d")(d.date), stale: !!d.stale}));
+
+// on overlapping days the newer service wins: drop predecessor rows on/after the successor's first date
+const cardStart = d3.rollup(parsed.filter(d => d.service === d.card), v => d3.min(v, d => +d.date), d => d.card);
+const allData = parsed.filter(d => d.service === d.card || !cardStart.has(d.card) || +d.date < cardStart.get(d.card));
 ```
 
 ```js
@@ -128,9 +141,21 @@ const xDomain = [cutoff ?? d3.min(allData, d => d.date), maxDate];
 // compute daily totals for "% of total" in the by-service tooltip
 const dailyTotals = d3.rollup(data, v => d3.sum(v, metricValue), d => +d.date);
 
-// only show services with non-stale data in the selected date range
-const visibleServices = new Set(data.filter(d => !d.stale).map(d => d.service));
-const visibleConfig = serviceConfig.filter(d => visibleServices.has(d.id));
+// only show cards with non-stale data (from either the service or a predecessor) in the selected date range
+const visibleCards = new Set(data.filter(d => !d.stale).map(d => d.card));
+
+// predecessor series with fresh data in range, per card; when present the card is named
+// "Category (Old → New)" and the old series is drawn in gray
+const activePredecessors = (config) => (config.predecessors ?? [])
+  .filter(p => data.some(d => d.service === p.id && !d.stale));
+
+const visibleConfig = serviceConfig
+  .filter(d => visibleCards.has(d.id))
+  .map(c => {
+    const prior = activePredecessors(c);
+    return {...c, prior, name: prior.length ? `${c.category} (${[...prior.map(p => p.service), c.service].join(" → ")})` : c.name};
+  });
+const cardNames = Object.fromEntries(visibleConfig.map(c => [c.id, c.name]));
 ```
 
 ```js
@@ -177,10 +202,10 @@ function deltaText(rows, {decimals = 0, format, mode = DELTA_MODE, label = true}
   return `${rawStr}${period}`;
 }
 
-// main-metric series for one service, skipping stale points
-function serviceSeries(serviceId) {
+// main-metric series for one card (combined across predecessors), skipping stale points
+function serviceSeries(cardId) {
   return data
-    .filter(d => d.service === serviceId && !d.stale)
+    .filter(d => d.card === cardId && !d.stale)
     .map(d => ({date: d.date, value: metricValue(d)}));
 }
 
@@ -263,7 +288,7 @@ const namedColor = Plot.scale({
 const serviceOrder = visibleConfig.map(d => d.name);
 
 function totalChart(data, {width, height, mode = "overall"} = {}) {
-  const named = data.map(d => ({...d, name: serviceNames[d.service]}));
+  const named = data.map(d => ({...d, name: cardNames[d.card]}));
   const overall = Array.from(
     d3.rollup(data, values => d3.sum(values, metricValue), d => +d.date),
     ([dateMs, total]) => ({date: new Date(+dateMs), total})
@@ -405,7 +430,7 @@ function changeChart(data, {width, height} = {}) {
     .map(config => {
       const series = serviceSeries(config.id);
       const stats = deltaStats(series);
-      return stats && {name: config.name, diff: stats.diff, label: deltaText(series, {label: false, mode: "raw"})};
+      return stats && {name: `${config.category} (${config.service})`, color: config.color, diff: stats.diff, label: deltaText(series, {label: false, mode: "raw"})};
     })
     .filter(Boolean)
     .sort((a, b) => d3.descending(a.diff, b.diff));
@@ -423,9 +448,9 @@ function changeChart(data, {width, height} = {}) {
     marginRight: 10,
     x: {grid: true, label: "Net change", tickFormat: fmtChange, domain: [Math.min(0, minDiff) - pad, Math.max(0, maxDiff) + pad]},
     y: {label: null, domain: changes.map(d => d.name), tickSize: 0},
-    color: namedColor,
+    color: {type: "identity"},
     marks: [
-      Plot.barX(changes, {x: "diff", y: "name", fill: "name"}),
+      Plot.barX(changes, {x: "diff", y: "name", fill: "color"}),
       // labels just past each bar's end (textAnchor is constant per mark, so split by sign)
       Plot.text(changes.filter(d => d.diff >= 0), {x: "diff", y: "name", text: "label", textAnchor: "start", dx: 4, fill: "currentColor", fontSize: 11}),
       Plot.text(changes.filter(d => d.diff < 0), {x: "diff", y: "name", text: "label", textAnchor: "end", dx: -4, fill: "currentColor", fontSize: 11}),
@@ -506,6 +531,29 @@ function serviceChart(rawServiceData, config, metricInfo, {width, height} = {}) 
   const yDom = yDomain(serviceData, metric);
   const yTicks = metricInfo.unit ? undefined : integerTicks(serviceData, metric, yDom);
 
+  // one set of line/dot marks per series: predecessors in gray, the card's own service in its color.
+  // separate marks per series leave a natural gap at the switchover.
+  const seriesMarks = (rows, stroke) => [
+    // faded line connecting fresh points directly (bridges across stale gaps)
+    Plot.lineY(rows.filter(d => !d.stale), {x: "date", y: metric, stroke, strokeWidth: 2, strokeOpacity: 0.25}),
+    // solid line that breaks at stale points (overdraws faded line for consecutive fresh segments)
+    Plot.lineY(rows, {x: "date", y: d => d.stale ? undefined : d[metric], stroke, strokeWidth: 2}),
+    Plot.dot(rows.filter(d => !d.stale), {
+      x: "date",
+      y: metric,
+      fill: stroke,
+      r: 3,
+      tip: true,
+      title: (d) => `${seriesLabels[d.service]}\n${d3.utcFormat("%b %-d, %Y")(d.date)}: ${formatMetric(d[metric], metricInfo)}`
+    })
+  ];
+
+  const current = serviceData.filter(d => d.service === config.id);
+  // predecessor rows are only drawn for metrics they actually have (e.g. Goodreads has no page counts)
+  const priorSeries = (config.prior ?? [])
+    .map(p => serviceData.filter(d => d.service === p.id && d[metric] != null))
+    .filter(rows => rows.some(d => !d.stale));
+
   return Plot.plot({
     width,
     ariaLabel: `${config.name}: ${yLabel} over time`,
@@ -513,29 +561,8 @@ function serviceChart(rawServiceData, config, metricInfo, {width, height} = {}) 
     y: {grid: true, label: yLabel, ...(yDom ? {domain: yDom} : {}), ...(yTicks ? {ticks: yTicks, tickFormat: ",d"} : {})},
     x: {type: "utc", label: null, domain: xDomain},
     marks: [
-      // faded line connecting fresh points directly (bridges across stale gaps)
-      Plot.lineY(serviceData.filter(d => !d.stale), {
-        x: "date",
-        y: metric,
-        stroke: color.apply(config.id),
-        strokeWidth: 2,
-        strokeOpacity: 0.25
-      }),
-      // solid line that breaks at stale points (overdraws faded line for consecutive fresh segments)
-      Plot.lineY(serviceData, {
-        x: "date",
-        y: d => d.stale ? undefined : d[metric],
-        stroke: color.apply(config.id),
-        strokeWidth: 2
-      }),
-      Plot.dot(serviceData.filter(d => !d.stale), {
-        x: "date",
-        y: metric,
-        fill: color.apply(config.id),
-        r: 3,
-        tip: true,
-        title: (d) => `${config.name}\n${d3.utcFormat("%b %-d, %Y")(d.date)}: ${formatMetric(d[metric], metricInfo)}`
-      }),
+      ...priorSeries.flatMap(rows => seriesMarks(rows, PREDECESSOR_COLOR)),
+      ...seriesMarks(current, color.apply(config.id)),
       ...(yDom ? [] : [Plot.ruleY([0])])
     ]
   });
@@ -543,16 +570,17 @@ function serviceChart(rawServiceData, config, metricInfo, {width, height} = {}) 
 ```
 
 ```js
-// title name, with the parenthesized service (or whole name) linked when config.url is set
+// title name "Category (Old → Service)", with the current service linked when config.url is set
 function serviceNameEl(config) {
-  if (!config.url) return config.name;
-  const link = (text) => html`<a href="${config.url}" target="_blank" rel="noopener noreferrer">${text}</a>`;
-  const match = config.name.match(/^(.*\()(.+)(\))$/);
-  return match ? html`<span>${match[1]}${link(match[2])}${match[3]}</span>` : link(config.name);
+  const service = config.url
+    ? html`<a href="${config.url}" target="_blank" rel="noopener noreferrer">${config.service}</a>`
+    : config.service;
+  const prior = (config.prior ?? []).map(p => `${p.service} → `).join("");
+  return html`<span>${config.category} (${prior}${service})</span>`;
 }
 
 function serviceCard(config) {
-  const serviceData = data.filter(d => d.service === config.id);
+  const serviceData = data.filter(d => d.card === config.id);
 
   // build full list of metric options: main + additional
   const mainLabel = config.mainLabel ?? (config.mainMetric === "count" ? "Count" : config.mainMetric);
