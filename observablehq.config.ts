@@ -1,9 +1,10 @@
 export default {
   title: "BT Observable Framework",
   pages: [
-    {name: "Media Counts", path: "/media-counts"},
-    {name: "Media Collections", path: "/media-collections"},
-    {name: "New Music Friday", path: "/new-music-friday"},
+    {name: "Media", pages: [
+      {name: "Media Counts", path: "/media-counts"},
+      {name: "New Music Friday", path: "/new-music-friday"},
+    ]},
     {name: "Experiments", open: false, pages: [
       {name: "Github Pages Tutorial", path: "/experiments/gh-pages"},
       {name: "Page Index Test", path: "/experiments/file-index"},
