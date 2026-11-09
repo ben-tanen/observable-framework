@@ -105,3 +105,15 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Send Pushover notification
+        continue-on-error: true
+        run: |
+          curl -s \
+            -F "token=${{ secrets.PUSHOVER_APP_TOKEN }}" \
+            -F "user=${{ secrets.PUSHOVER_USER_KEY }}" \
+            -F "title=Observable Framework: New Build Deployed" \
+            -F "message=Trigger: ${{ github.event_name }} (refresh = ${{ inputs.refresh || 'none' }})" \
+            -F "url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            -F "url_title=View run" \
+            https://api.pushover.net/1/messages.json
