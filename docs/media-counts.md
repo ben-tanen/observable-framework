@@ -222,7 +222,7 @@ function subtitleEl() {
 // latest date in the data
 const latestDate = d3.max(data, d => d.date);
 const latest = data.filter(d => +d.date === +latestDate);
-const totalCount = d3.sum(latest, d => d.count);
+const totalCount = d3.sum(latest, metricValue);
 
 // daily total across services, used for the net change KPI
 const overallSeries = Array.from(
